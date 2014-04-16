@@ -1,40 +1,12 @@
 {-# LANGUAGE TypeSynonymInstances,FlexibleInstances #-}
-module PMRS where
+module PMRS (
+  Rule(..), PMRS(..)
+  ) where
 
+import Term
+import Sorts
 import Data.List
 import qualified Data.Set as S
-
-data Sort a = Base a
-            | Arrow (Sort a) (Sort a)
-
-instance Show a => Show (Sort a) where
-	show (Base b) = show b
-	show (Arrow s1@(Base _) s2) = show s1 ++ " -> " ++ show s2
-	show (Arrow s1 s2) = "(" ++ show s1 ++ ") -> " ++ show s2
-
-createSort :: Int -> a -> Sort a
-createSort 0 b = Base b
-createSort n b = Arrow (Base b) $ createSort (n-1) b
-
-data SortedSymbol a = SS String (Sort a)
-
-instance Show a => Show (SortedSymbol a) where
-  show (SS s _) = s
-
-data Head a = Var String
-          | Nt (SortedSymbol a)
-          | T (SortedSymbol a)
-
-instance Show a => Show (Head a) where
-	show (Var x) = x
-	show (Nt (SS s _)) = s -- ++ ":" ++ show sort
-	show (T  (SS s _))  = s -- ++ ":" ++ show sort
-
-data Term a = App (Head a) [Term a]
-
-instance Show a => Show (Term a) where
-	show (App h []) = show h
-	show (App h lst) = show h ++ " " ++ unwords (map show lst)
 
 data Rule a = Rule { ruleF :: SortedSymbol a
   , ruleVars :: [String]
