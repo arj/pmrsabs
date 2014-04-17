@@ -1,9 +1,14 @@
-import PMRS
-import Term
-import Sorts
-import Abstraction
-import Data.Set
-import Examples
+import           Abstraction
+import           Examples
+import           PMRS
+import           Sorts
+import           Term
+
+--import Data.MultiMap (MultiMap)
+import qualified Data.MultiMap as MM
+
+import           Data.Set      (Set)
+import qualified Data.Set      as S
 
 tpe :: Term ()
 tpe = var "phi"
@@ -18,7 +23,13 @@ rule1 :: Rule ()
 rule1 = Rule {ruleF = ntF, ruleVars = ["x1","x2"], rulePattern = Nothing, ruleBody = tpe}
 
 pmrs1 :: PMRS ()
-pmrs1 = PMRS empty empty empty empty ntS
+pmrs1 = PMRS S.empty S.empty MM.empty ntS
+
+
+example5_1 :: Set (Term ())
+example5_2 :: Set (Term ())
+example5_3 :: Set (Term ())
+(example5_1,example5_2,example5_3) = example5
 
 main :: IO ()
 main = do
@@ -30,3 +41,5 @@ main = do
 	print example5_1
 	print example5_2
 	print example5_3
+	print example2pmrs
+	print exampleRmatch

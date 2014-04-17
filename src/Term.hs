@@ -1,7 +1,7 @@
 module Term (
 	Head(..), Term(App),
 
-	app, var, terminal, nonterminal, symbol, headToTerm,
+	app, var, terminal, nonterminal, symbol, ssToSymbol, headToTerm,
 	fv, subst, subterms
 	) where
 
@@ -47,6 +47,9 @@ nonterminal s srt = App (Nt (SortedSymbol s srt)) []
 
 terminal :: String -> Sort a -> Term a
 terminal s srt = App (T (SortedSymbol s srt)) []
+
+ssToSymbol :: SortedSymbol a -> Term a
+ssToSymbol (SortedSymbol s srt) = symbol s srt
 
 symbol :: String -> Sort a -> Term a
 symbol s@(c:_) srt
