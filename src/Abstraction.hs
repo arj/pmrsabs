@@ -16,7 +16,10 @@ import Sorts
 
 import Control.Arrow (first)
 
-import Data.MultiMap (MultiMap)
+import Data.SetMap (SetMap)
+import qualified Data.SetMap as SM
+
+--import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 
 import Data.Set (Set)
@@ -37,13 +40,13 @@ hs s (Var x) xs =
   else
     S.unions $ map f xitm
   where
-    xitm = MM.lookup x s
+    xitm = S.toList $ SM.lookup x s
     f (App xi tm) =
         let deltas = hs s xi (S.insert x xs) in
         S.map (\d -> app d tm) deltas
 
 
-type Binding a = MultiMap String (Term a)
+type Binding a = SetMap String (Term a)
 
 -- |Given a term and a set of bindings S, substHead replaces the
 --  head of the term - if it is a variable - with all possible
@@ -54,46 +57,46 @@ substHead s (App xi@(Var _) ts) = S.map (\d -> app d ts) deltas
     deltas = hs s xi $ S.empty
 substHead _ t                   = S.singleton t
 
-toBinding :: Set (Term a, Term a) -> Binding a
-toBinding s = MM.fromList $ S.foldr f [] s
+toBinding :: Ord a => Set (Term a, Term a) -> Binding a
+toBinding s = S.foldr f SM.empty s
   where
-    f ((App (Var x) []),p) ack = (x,p) : ack -- TODO with [] or _ ?
+    f ((App (Var x) []),p) ack = SM.insert x p ack
     f _ ack = ack
 
 fromBinding :: Ord a => Binding a -> Set (Term a, Term a)
-fromBinding = S.fromList . map (first var) . MM.toList
+fromBinding = S.fromList . map (first var) . SM.toList
 
 rmatch :: (Show a, Ord a) => Rules a -> Term a -> Term a -> Set (Term a, Term a) -> Binding a
 rmatch r u1 p1 bnd
-  | S.member (u1,p1) bnd  = MM.empty
+  | S.member (u1,p1) bnd  = SM.empty
   | otherwise = rmatch' u1 p1
   where
-    rmatch' u (App (Var x) _) = MM.fromList [(x,u)]
+    rmatch' u (App (Var x) _) = SM.singleton x u
     rmatch' u@(App (T a2) ts) p@(App (T a1) ps) =
       if a1 == a2 then
         let bnd' = S.insert (u,p) bnd in
-        MM.unions $ map (\(ti,pi) -> rmatch r ti pi bnd') $ zip ts ps
+        SM.unions $ map (\(ti,pi) -> rmatch r ti pi bnd') $ zip ts ps
       else
-        MM.empty
-    rmatch' u@(App (Var _) _) p = MM.unions $ map (\t -> rmatch r t p bnd') ts
+        SM.empty
+    rmatch' u@(App (Var _) _) p = SM.unions $ map (\t -> rmatch r t p bnd') ts
       where
         vbnd = toBinding bnd
         ts = S.toList $ substHead vbnd u
         bnd' = S.insert (u,p) bnd
     rmatch' u@(App (Nt f) ts) p =
       let nonemptyRules = filter nonempty rulesForf in
-      MM.unions $ map (\(Rule _ _ _ t) -> rmatch r t p bnd) $ nonemptyRules
+      SM.unions $ map (\(Rule _ _ _ t) -> rmatch r t p bnd) $ nonemptyRules
       where
         rulesForf = MM.lookup f r
         bnd' = S.insert (u,p) bnd
         v = last ts
         --
-        nonempty (Rule _ _ (Just q) _) = not $ MM.null $ rmatch r v q bnd'
+        nonempty (Rule _ _ (Just q) _) = not $ SM.null $ rmatch r v q bnd'
         nonempty (Rule _ xs Nothing  _)
           | null xs   = True
           | otherwise =
             let q = var $ last xs in
-            not $ MM.null $ rmatch r v q bnd'
+            not $ SM.null $ rmatch r v q bnd'
 
 -- | Extracts all simple terms begining with a variable or nonterminal from
 -- a given PMRS with a starting symbol of the included 0-order HORS.
@@ -107,7 +110,7 @@ simpleTerms gS (PMRS _ _ r mainSymbol) = S.insert mainS $ allSubTerms
     s    = ssToSymbol gS
 
 step :: (Show a, Ord a) => Rules a -> Binding a -> Term a -> Binding a
-step rs bnd u = MM.union bnd $ MM.unions $ concat $ map bndPerTerms $ S.toList rulesPerTerm
+step rs bnd u = SM.union bnd $ SM.unions $ concat $ map bndPerTerms $ S.toList rulesPerTerm
   where
     terms        = substHead bnd u
     -- Set (Term a1, [Rule a1])
@@ -118,19 +121,19 @@ step rs bnd u = MM.union bnd $ MM.unions $ concat $ map bndPerTerms $ S.toList r
     --
     bndFromRule (App _ ts) (Rule _ xs (Just p) _) =
       if length ts < 1 + length xs then -- Don't do partial applications!
-        MM.empty
+        SM.empty
       else
-        MM.union (MM.fromList $ zip xs (init ts)) (minRed (last ts) p)
-    bndFromRule (App _ ts) (Rule _ xs Nothing  _) = MM.fromList $ zip xs ts
+        SM.union (SM.fromList $ zip xs (init ts)) (minRed (last ts) p)
+    bndFromRule (App _ ts) (Rule _ xs Nothing  _) = SM.fromList $ zip xs ts
 
 bindingAnalysisOneRound :: (Show a, Ord a) => SortedSymbol a -> PMRS a -> Binding a -> Binding a
 bindingAnalysisOneRound gs pmrs@(PMRS _ _ rs _) bnd = foldl (step rs) bnd terms
   where
       terms = S.toList $ simpleTerms gs pmrs
 
-bindingAnalysis :: (Show a, Ord a) => SortedSymbol a -> PMRS a -> MultiMap String (Term a) -> Binding a
+bindingAnalysis :: (Show a, Ord a) => SortedSymbol a -> PMRS a -> Binding a -> Binding a
 bindingAnalysis gs pmrs bnd
-  | MM.toMapOfSets bnd == MM.toMapOfSets bnd' = bnd'
+  | SM.toMap bnd == SM.toMap bnd' = bnd'
   | otherwise   = bindingAnalysis gs pmrs bnd'
   where
     bnd' = bindingAnalysisOneRound gs pmrs bnd
