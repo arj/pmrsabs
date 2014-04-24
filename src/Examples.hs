@@ -15,8 +15,8 @@ import           Term
 import           Data.Set      (Set)
 import qualified Data.Set      as S
 
---import Data.MultiMap (MultiMap)
-import qualified Data.MultiMap as MM
+import Data.SetMap (SetMap)
+import qualified Data.SetMap as SM
 
 
 example5 = (example5_1, example5_2, example5_3)
@@ -41,13 +41,13 @@ example5 = (example5_1, example5_2, example5_3)
     a = symbol "a" o
 
     s1 :: Binding ()
-    s1 = MM.fromList [("x", app y [b])
+    s1 = SM.fromList [("x", app y [b])
                      ,("x",n)
                      ,("y",app f [z])
                      ,("z",a)]
 
     s2 :: Binding ()
-    s2 = MM.fromList [("x", app f [y,z])
+    s2 = SM.fromList [("x", app f [y,z])
                      ,("y",z)
                      ,("y",a)
                      ,("z",b)]
@@ -165,7 +165,7 @@ example8pmrs = PMRS sigma nonterminals r ssMain
     r = listToRules [Rule ssMain [] (Just m) $ mkMap2 kzero kone m
                     ,Rule ssMap2 ["phi","psi"] (Just nil) $ nil
                     ,Rule ssMap2 ["phi","psi"] (Just $ app cons [x,xs]) $
-                        mkCons (app phi [x]) (mkMap2 kone kzero xs)
+                        mkCons (app phi [x]) (mkMap2 psi phi xs)
                     ,Rule ssKZero ["x_1"] Nothing zero
                     ,Rule ssKOne  ["x_2"] Nothing one
                     --
