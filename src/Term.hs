@@ -2,7 +2,7 @@ module Term (
 	Head(..), Term(App),
 
 	app, var, terminal, nonterminal, symbol, ssToSymbol, headToTerm,
-	fv, subst, subterms, subterms'
+	fv, subst, substAll, subterms, subterms'
 	) where
 
 import Sorts
@@ -73,3 +73,6 @@ subst x v (App h@(Var y) ts)
 	| x == y    = app v $ map (subst x v) ts
 	| otherwise = App h $ map (subst x v) ts
 subst x v (App h ts) = App h $ map (subst x v) ts
+
+substAll :: [(Var, Term a)] -> Term a -> Term a
+substAll lst term = foldl (\ack (v,t) -> subst v t ack) term lst

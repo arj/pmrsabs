@@ -1,12 +1,14 @@
-module Abstraction (
-  wPMRS, sPMRS,
-  Binding,
-  substHead,
-  rmatch,
-  step,
-  simpleTerms,
-  bindingAnalysis
-  ) where
+module Abstraction
+--(
+--  wPMRS, sPMRS,
+--  Binding,
+--  substHead,
+--  rmatch,
+--  step,
+--  simpleTerms,
+--  bindingAnalysis
+--  )
+where
 
 import Prelude hiding (pi)
 
@@ -24,6 +26,8 @@ import qualified Data.MultiMap as MM
 
 import Data.Set (Set)
 import qualified Data.Set as S
+
+import Data.Char
 
 import Debug.Trace
 
@@ -138,9 +142,38 @@ bindingAnalysis gs pmrs bnd
   where
     bnd' = bindingAnalysisOneRound gs pmrs bnd
 
-wPMRS :: Ord a => SortedSymbol a -> PMRS a -> PMRS a
-wPMRS gs pmrs = undefined
-  
+weakPMrules :: Rules () -> Rules ()
+weakPMrules rs = MM.map f rs
+  where
+    f r@(Rule _ _  Nothing  _) = r
+    f   (Rule g xs (Just p) b) =
+      -- TODO Wrong sort!
+      let pmxs = map (\x -> (x,nonterminal (headToUpper x) o)) $ S.toList $ fv p
+          b'   = substAll pmxs b in
+      Rule g xs (Just p) b'
+
+instantiationRules :: Binding () -> (Set (SortedSymbol ()), Rules ())
+instantiationRules bnd = (S.fromList symbols, listToRules rs)
+  where
+    (symbols, rs) = unzip $ map (uncurry bndToRule) $ SM.toList bnd
+    -- TODO Correct sort missing!
+    bndToRule x t =
+      let smb = (SortedSymbol (headToUpper x) o) in
+      (smb, Rule smb [] Nothing t)
+
+headToUpper :: String -> String
+headToUpper []     = []
+headToUpper (x:xs) = toUpper x : xs
+
+--wPMRS :: Ord a => SortedSymbol a -> PMRS a -> PMRS a
+wPMRS :: SortedSymbol () -> PMRS () -> PMRS ()
+wPMRS gs p@(PMRS sigma nt rs s) = PMRS sigma nt' rs' s
+  where
+    nt' = S.union nt instnt
+    rs' = MM.union (weakPMrules rs) $ instrs
+    bnd = bindingAnalysis gs p SM.empty
+    (instnt,instrs) = instantiationRules bnd
+
 
 sPMRS :: PMRS a -> PMRS a
 sPMRS = undefined
