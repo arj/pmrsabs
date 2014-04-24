@@ -2,13 +2,19 @@ module Abstraction (
   wPMRS, sPMRS,
   Binding,
   substHead,
-  rmatch
+  rmatch,
+  step,
+  simpleTerms,
+  bindingAnalysis
   ) where
 
 import Prelude hiding (pi)
 
 import PMRS
 import Term
+import Sorts
+
+import Control.Arrow (first)
 
 import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
@@ -54,10 +60,13 @@ toBinding s = MM.fromList $ S.foldr f [] s
     f ((App (Var x) []),p) ack = (x,p) : ack -- TODO with [] or _ ?
     f _ ack = ack
 
+fromBinding :: Ord a => Binding a -> Set (Term a, Term a)
+fromBinding = S.fromList . map (first var) . MM.toList
+
 rmatch :: (Show a, Ord a) => Rules a -> Term a -> Term a -> Set (Term a, Term a) -> Binding a
 rmatch r u1 p1 bnd
-  | S.member (u1,p1) bnd  = trace (show (u1,p1) ++ " is a member of " ++ show bnd) $ MM.empty
-  | otherwise = traceRet ("Calling rmatch' " ++ show u1 ++ " " ++ show p1) $ rmatch' u1 p1
+  | S.member (u1,p1) bnd  = MM.empty
+  | otherwise = rmatch' u1 p1
   where
     rmatch' u (App (Var x) _) = MM.fromList [(x,u)]
     rmatch' u@(App (T a2) ts) p@(App (T a1) ps) =
@@ -86,8 +95,49 @@ rmatch r u1 p1 bnd
             let q = var $ last xs in
             not $ MM.null $ rmatch r v q bnd'
 
-wPMRS :: PMRS a -> PMRS a
-wPMRS = undefined
+-- | Extracts all simple terms begining with a variable or nonterminal from
+-- a given PMRS with a starting symbol of the included 0-order HORS.
+simpleTerms :: Ord a => SortedSymbol a -> PMRS a -> Set (Term a)
+simpleTerms gS (PMRS _ _ r mainSymbol) = S.insert mainS $ allSubTerms
+  where
+    rhs = map ruleBody $ concat $ MM.elems r
+    allSubTerms = S.unions $ map subterms' rhs
+    mainS = app main [s]
+    main = ssToSymbol mainSymbol
+    s    = ssToSymbol gS
+
+step :: (Show a, Ord a) => Rules a -> Binding a -> Term a -> Binding a
+step rs bnd u = MM.union bnd $ MM.unions $ concat $ map bndPerTerms $ S.toList rulesPerTerm
+  where
+    terms        = substHead bnd u
+    -- Set (Term a1, [Rule a1])
+    rulesPerTerm = S.map (\t -> (t,matchingRules rs t)) terms
+    bndPerTerms (term,trules) = map (bndFromRule term) trules
+    --
+    minRed s p   = rmatch rs s p (fromBinding bnd)
+    --
+    bndFromRule (App _ ts) (Rule _ xs (Just p) _) =
+      if length ts < 1 + length xs then -- Don't do partial applications!
+        MM.empty
+      else
+        MM.union (MM.fromList $ zip xs (init ts)) (minRed (last ts) p)
+    bndFromRule (App _ ts) (Rule _ xs Nothing  _) = MM.fromList $ zip xs ts
+
+bindingAnalysisOneRound :: (Show a, Ord a) => SortedSymbol a -> PMRS a -> Binding a -> Binding a
+bindingAnalysisOneRound gs pmrs@(PMRS _ _ rs _) bnd = foldl (step rs) bnd terms
+  where
+      terms = S.toList $ simpleTerms gs pmrs
+
+bindingAnalysis :: (Show a, Ord a) => SortedSymbol a -> PMRS a -> MultiMap String (Term a) -> Binding a
+bindingAnalysis gs pmrs bnd
+  | MM.toMapOfSets bnd == MM.toMapOfSets bnd' = bnd'
+  | otherwise   = bindingAnalysis gs pmrs bnd'
+  where
+    bnd' = bindingAnalysisOneRound gs pmrs bnd
+
+wPMRS :: Ord a => SortedSymbol a -> PMRS a -> PMRS a
+wPMRS gs pmrs = undefined
+  
 
 sPMRS :: PMRS a -> PMRS a
 sPMRS = undefined

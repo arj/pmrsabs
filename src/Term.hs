@@ -2,7 +2,7 @@ module Term (
 	Head(..), Term(App),
 
 	app, var, terminal, nonterminal, symbol, ssToSymbol, headToTerm,
-	fv, subst, subterms
+	fv, subst, subterms, subterms'
 	) where
 
 import Sorts
@@ -56,8 +56,17 @@ symbol s@(c:_) srt
   | isUpper c = nonterminal s srt
   | isLower c = terminal s srt
 
-subterms :: Term a -> Set (Term a)
-subterms = undefined
+subterms :: Ord a => Term a -> Set (Term a)
+subterms t@(App _ ts) = S.insert t $ S.unions $ map subterms ts
+
+-- | Lists all subterms who's head is either a variable or a non-terminal.
+subterms' :: Ord a => Term a -> Set (Term a)
+subterms' t@(App h ts) = case h of
+	Var _ -> S.insert t rest
+	Nt  _ -> S.insert t rest
+	T   _ -> rest
+  where
+  	rest = S.unions $ map subterms ts
 
 subst :: Var -> Term a -> Term a -> Term a
 subst x v (App h@(Var y) ts)

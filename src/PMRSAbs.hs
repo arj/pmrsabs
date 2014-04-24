@@ -1,5 +1,5 @@
 import           Abstraction
-import           Examples
+import           Examples hiding (main)
 import           PMRS
 import           Sorts
 import           Term
@@ -33,13 +33,13 @@ example5_3 :: Set (Term ())
 
 main :: IO ()
 main = do
-	putStrLn "Test"
-	print rule1
-	print pmrs1
+	--putStrLn "Test"
+	--print rule1
+	--print pmrs1
 	--print $ wPMRS pmrs1
 	--print $ sPMRS pmrs1
-	print example5_1
-	print example5_2
-	print example5_3
-	print example2pmrs
+	--print example5_1
+	--print example5_2
+	--print example5_3
+	--print example2pmrs
 	print exampleRmatch

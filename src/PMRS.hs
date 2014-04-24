@@ -4,7 +4,7 @@ module PMRS (
 
   Rules,
 
-  listToRules
+  listToRules, matchingRules
   ) where
 
 import Term
@@ -23,6 +23,10 @@ data Rule a = Rule { ruleF :: SortedSymbol a
   , ruleBody ::  Term a
 } deriving (Eq,Ord)
 
+matchingRules :: Ord a => Rules a -> Term a -> [Rule a]
+matchingRules rs (App (Nt f) _) = MM.lookup f rs
+matchingRules _  (App _ _) = []
+
 showMaybe :: Show a => Maybe a -> String
 showMaybe Nothing = ""
 showMaybe (Just p) = show p
@@ -33,9 +37,9 @@ instance Show a => Show (Rule a) where
   show (Rule f xs p body) = unwords $ filter (not . null) [show f, unwords xs, showMaybe p,"=>",show body]
 
 listToRules :: Ord a => [Rule a] -> Rules a
-listToRules lst = MM.fromList $ map f lst
+listToRules lst = MM.fromList $ map fPairUp lst
   where
-    f r@(Rule f _ _ _) = (f,r)
+    fPairUp r@(Rule f _ _ _) = (f,r)
 
 data PMRS a = PMRS { terminals :: Set (SortedSymbol a)
   , nonterminals :: Set (SortedSymbol a)
@@ -47,4 +51,4 @@ showSet :: Show a => Set a -> [Char]
 showSet s = if S.null s then "[]" else show s
 
 instance Show a => Show (PMRS a) where
-  show (PMRS t nt r s) = "<" ++ (intercalate "," [showSet t,showSet nt,show $ concat $ MM.elems r,show s]) ++ ">"
+  show (PMRS t nt r s) = "<" ++ (intercalate ",\n" [showSet t,showSet nt,show $ concat $ MM.elems r,show s]) ++ ">"
