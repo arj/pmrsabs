@@ -5,7 +5,7 @@ module PMRS (
   Rules,
 
   listToRules, matchingRules,
-  prettyPrintPMRS, prettyPrintRule, prettyPrintRules,
+  prettyPrintPMRS,
   cleanup
   ) where
 
@@ -32,10 +32,6 @@ matchingRules :: Ord a => Rules a -> Term a -> [Rule a]
 matchingRules rs (App (Nt f) _) = MM.lookup f rs
 matchingRules _  (App _ _) = []
 
-showMaybe :: Show a => Maybe a -> String
-showMaybe Nothing = ""
-showMaybe (Just p) = show p
-
 type Rules a = MultiMap (SortedSymbol a) (Rule a)
 
 instance Show a => Show (Rule a) where
@@ -51,6 +47,16 @@ data PMRS a = PMRS { terminals :: Set (SortedSymbol a)
   , rules :: Rules a
   , start :: SortedSymbol a
 }
+
+cleanup :: Ord a => PMRS a -> PMRS a
+-- | Removes rules if they are not used anywhere.
+-- Could be improved by doing a reachability analysis.
+-- At the moment two unused nonterminals an keep each
+-- other alive by referencing themselves.
+cleanup (PMRS sigma n r s) = PMRS sigma n r' s
+  where
+    nts = S.insert s $ S.unions $ map (getN . ruleBody) $ concat $ MM.elems r
+    r'  = MM.filter (\(Rule f _ _ _) -> S.member f nts) r
 
 instance Show a => Show (PMRS a) where
   show (PMRS t nt r s) = "<" ++ (intercalate ",\n" [showSet t,showSet nt,show $ concat $ MM.elems r,show s]) ++ ">"
@@ -75,16 +81,6 @@ prettyPrintRules s r = do
     prettyPrintRule currentRule
     tell ".\n"
   return ()
-
-cleanup :: Ord a => PMRS a -> PMRS a
--- | Removes rules if they are not used anywhere.
--- Could be improved by doing a reachability analysis.
--- At the moment two unused nonterminals an keep each
--- other alive by referencing themselves.
-cleanup (PMRS sigma n r s) = PMRS sigma n r' s
-  where
-    nts = S.insert s $ S.unions $ map (getN . ruleBody) $ concat $ MM.elems r
-    r'  = MM.filter (\(Rule f _ _ _) -> S.member f nts) r
 
 instance (Show a, Ord a) => PrettyPrint (PMRS a) where
   prettyPrint pmrs = execWriter $ prettyPrintPMRS pmrs

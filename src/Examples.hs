@@ -11,6 +11,7 @@ import           Abstraction
 import           PMRS
 import           Sorts
 import           Term
+import           RSFD
 
 import           Data.Set      (Set)
 import qualified Data.Set      as S
