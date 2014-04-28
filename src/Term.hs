@@ -2,7 +2,7 @@ module Term (
 	Head(..), Term(App),
 
 	app, var, terminal, nonterminal, symbol, ssToSymbol, headToTerm,
-	fv, subst, substAll, subterms, subterms'
+	fv, subst, substAll, subterms, subterms', getN
 	) where
 
 import Sorts
@@ -26,11 +26,15 @@ headToTerm :: Head a -> Term a
 headToTerm h = App h []
 
 data Term a = App (Head a) [Term a]
+            | Case Int [Term a] -- Only for RSFD
+            | D Int -- Only for RSFD
   deriving (Eq,Ord)
 
 instance Show a => Show (Term a) where
 	show (App h []) = show h
 	show (App h lst) = "(" ++ show h ++ " " ++ unwords (map show lst) ++ ")"
+	show (Case x ti) = "_case " ++ show x ++ " " ++ unwords (map show ti)
+	show (D i) = show i
 
 fv :: Term a -> Set Var
 fv (App (Var x) ts) = S.insert x $ S.unions $ map fv ts
@@ -67,6 +71,10 @@ subterms' t@(App h ts) = case h of
 	T   _ -> rest
   where
   	rest = S.unions $ map subterms ts
+
+getN :: Ord a => Term a -> Set (SortedSymbol a)
+getN t@(App (Nt a) ts) = S.insert a $ S.unions $ map getN ts
+getN t@(App _      ts) = S.unions $ map getN ts
 
 subst :: Var -> Term a -> Term a -> Term a
 subst x v (App h@(Var y) ts)
