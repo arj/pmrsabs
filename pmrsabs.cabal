@@ -28,7 +28,8 @@ executable pmrsabs
                        Abstraction,
                        Term,
                        Sorts,
-                       Examples
+                       Examples,
+                       RSFD
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        containers >=0.5 && <0.6,
