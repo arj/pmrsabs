@@ -10,25 +10,25 @@ import qualified Data.MultiMap as MM
 import           Data.Set      (Set)
 import qualified Data.Set      as S
 
-tpe :: Term ()
+tpe :: Term
 tpe = var "phi"
 
-ntF :: SortedSymbol ()
-ntF = SortedSymbol "F" $ Base ()
+ntF :: SortedSymbol
+ntF = SortedSymbol "F" $ Base
 
-ntS :: SortedSymbol ()
-ntS = SortedSymbol "S" $ Base ()
+ntS :: SortedSymbol
+ntS = SortedSymbol "S" $ Base
 
-rule1 :: Rule ()
-rule1 = Rule {ruleF = ntF, ruleVars = ["x1","x2"], rulePattern = Nothing, ruleBody = tpe}
+rule1 :: PMRSRule
+rule1 = PMRSRule ntF ["x1","x2"] Nothing tpe
 
-pmrs1 :: PMRS ()
+pmrs1 :: PMRS
 pmrs1 = PMRS S.empty S.empty MM.empty ntS
 
 
-example5_1 :: Set (Term ())
-example5_2 :: Set (Term ())
-example5_3 :: Set (Term ())
+example5_1 :: Set Term
+example5_2 :: Set Term
+example5_3 :: Set Term
 (example5_1,example5_2,example5_3) = example5
 
 main :: IO ()

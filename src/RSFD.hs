@@ -19,31 +19,31 @@ import qualified Data.MultiMap as MM
 
 import Control.Monad.Writer
 
-data RSFDRule a = RSFDRule { rsfdRuleHead :: SortedSymbol a
+data RSFDRule = RSFDRule { rsfdRuleHead :: SortedSymbol
   , rsfdRuleVars :: [String]
-  , rsfdBody     :: Term a
+  , rsfdBody     :: Term
 } deriving (Eq, Ord)
 
-instance Show a => Show (RSFDRule a) where
+instance Show RSFDRule where
   show (RSFDRule f xs body) = unwords $ filter (not . null) [show f, unwords xs, "=>",show body]
 
-type RSFDRules a = MultiMap (SortedSymbol a) (RSFDRule a)
+type RSFDRules = MultiMap SortedSymbol RSFDRule
 
 type DataDomain = Map String Int
 
-type RankedAlphabet a = Set (SortedSymbol a)
+type RankedAlphabet = Set SortedSymbol
 
-data RSFD a = RSFD { rsfdTerminals :: RankedAlphabet a
-  , rsfdNonterminals :: RankedAlphabet a
+data RSFD = RSFD { rsfdTerminals :: RankedAlphabet
+  , rsfdNonterminals :: RankedAlphabet
   , rsfdData :: DataDomain
-  , rsfdRules :: RSFDRules a
-  , rsfdStart :: SortedSymbol a
+  , rsfdRules :: RSFDRules
+  , rsfdStart :: SortedSymbol
 }
 
-instance Show a => Show (RSFD a) where
+instance Show RSFD where
 	show (RSFD t nt d r s) = "<" ++ (intercalate ",\n" [showSet t,showSet nt,show d,show $ concat $ MM.elems r,show s]) ++ ">"
 
-prettyPrintRSFD :: (Show a, Ord a) => RSFD a -> Writer String ()
+prettyPrintRSFD :: RSFD -> Writer String ()
 prettyPrintRSFD (RSFD _ _ _ r s) = do
   tell "%BEGING"
   tell "\n"
@@ -51,20 +51,20 @@ prettyPrintRSFD (RSFD _ _ _ r s) = do
   tell "%ENDG"
   tell "\n"
 
-prettyPrintRule :: Show a => RSFDRule a => Writer String ()
+prettyPrintRule :: RSFDRule => Writer String ()
 prettyPrintRule (RSFDRule f xs body) = tell $ unwords $ filter (not . null) [show f, unwords xs, "=",show body]
 
-prettyPrintRules :: (Show a, Ord a) => SortedSymbol a -> RSFDRules a -> Writer String ()
+prettyPrintRules :: SortedSymbol -> RSFDRules -> Writer String ()
 prettyPrintRules s r = do
   -- Ensure that rules with the start symbol are at the beginning of the list.
-  let (startRules,otherRules) = partition (\rule -> s == rsfdRuleHead rule) $ concat $ MM.elems r
+  let (startRules,otherRules) = partition ((s ==) . rsfdRuleHead) $ concat $ MM.elems r
   let ruleList = startRules ++ otherRules
   forM_ ruleList $ \currentRule -> do
     prettyPrintRule currentRule
     tell ".\n"
   return ()
 
-instance (Show a, Ord a) => PrettyPrint (RSFD a) where
+instance PrettyPrint RSFD where
   prettyPrint rsfd = execWriter $ prettyPrintRSFD rsfd
 
 -- Steps:
@@ -84,13 +84,16 @@ instance (Show a, Ord a) => PrettyPrint (RSFD a) where
 --  4. CPS transformation if necessary? We cannot return values
 --     of type d!
 
-extractDataDomain :: Ord a => PMRS a -> DataDomain
+extractDataDomain :: PMRS -> DataDomain
 extractDataDomain (PMRS sigma _ _ _) = M.fromList $ zip (S.toList $ S.map f sigma) [0..]
   where
 	f (SortedSymbol s _) = s
 
-transformRules :: Rules a -> DataDomain -> RSFDRules a
+transformRules :: PMRSRules -> DataDomain -> RSFDRules
 transformRules rules dd = undefined
+  where
+  	keys = MM.keys rules
 
-fromWPMRS :: PMRS () -> RSFD ()
+
+fromWPMRS :: PMRS -> RSFD
 fromWPMRS = undefined

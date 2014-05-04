@@ -1,8 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances,FlexibleInstances #-}
 module PMRS (
-  Rule(..), PMRS(..),
-
-  Rules,
+  PMRSRule(..), PMRS(..),
+  PMRSRules,
 
   listToRules, matchingRules,
   prettyPrintPMRS,
@@ -22,46 +21,46 @@ import qualified Data.Set as S
 
 import Control.Monad.Writer
 
-data Rule a = Rule { ruleF :: SortedSymbol a
-  , ruleVars :: [String]
-  , rulePattern :: Maybe (Term a)
-  , ruleBody ::  Term a
+data PMRSRule = PMRSRule { pmrsRuleF :: SortedSymbol
+  , pmrsRuleVars :: [String]
+  , pmrsRulePattern :: Maybe Term
+  , pmrsRuleBody ::  Term
 } deriving (Eq,Ord)
 
-matchingRules :: Ord a => Rules a -> Term a -> [Rule a]
+matchingRules :: PMRSRules -> Term -> [PMRSRule]
 matchingRules rs (App (Nt f) _) = MM.lookup f rs
 matchingRules _  (App _ _) = []
 
-type Rules a = MultiMap (SortedSymbol a) (Rule a)
+type PMRSRules = MultiMap SortedSymbol PMRSRule
 
-instance Show a => Show (Rule a) where
-  show (Rule f xs p body) = unwords $ filter (not . null) [show f, unwords xs, showMaybe p,"=>",show body]
+instance Show PMRSRule where
+  show (PMRSRule f xs p body) = unwords $ filter (not . null) [show f, unwords xs, showMaybe p,"=>",show body]
 
-listToRules :: Ord a => [Rule a] -> Rules a
+listToRules :: [PMRSRule] -> PMRSRules
 listToRules lst = MM.fromList $ map fPairUp lst
   where
-    fPairUp r@(Rule f _ _ _) = (f,r)
+    fPairUp r@(PMRSRule f _ _ _) = (f,r)
 
-data PMRS a = PMRS { terminals :: Set (SortedSymbol a)
-  , nonterminals :: Set (SortedSymbol a)
-  , rules :: Rules a
-  , start :: SortedSymbol a
+data PMRS = PMRS { pmrsTerminals :: Set SortedSymbol
+  , pmrsNonterminals :: Set SortedSymbol
+  , pmrsRules :: PMRSRules
+  , pmrsStart :: SortedSymbol
 }
 
-cleanup :: Ord a => PMRS a -> PMRS a
+cleanup :: PMRS -> PMRS
 -- | Removes rules if they are not used anywhere.
 -- Could be improved by doing a reachability analysis.
 -- At the moment two unused nonterminals an keep each
 -- other alive by referencing themselves.
 cleanup (PMRS sigma n r s) = PMRS sigma n r' s
   where
-    nts = S.insert s $ S.unions $ map (getN . ruleBody) $ concat $ MM.elems r
-    r'  = MM.filter (\(Rule f _ _ _) -> S.member f nts) r
+    nts = S.insert s $ S.unions $ map (getN . pmrsRuleBody) $ concat $ MM.elems r
+    r'  = MM.filter (\(PMRSRule f _ _ _) -> S.member f nts) r
 
-instance Show a => Show (PMRS a) where
+instance Show PMRS where
   show (PMRS t nt r s) = "<" ++ (intercalate ",\n" [showSet t,showSet nt,show $ concat $ MM.elems r,show s]) ++ ">"
 
-prettyPrintPMRS :: (Show a, Ord a) => PMRS a -> Writer String ()
+prettyPrintPMRS :: PMRS -> Writer String ()
 prettyPrintPMRS (PMRS _ _ r s) = do
   tell "%BEGING"
   tell "\n"
@@ -69,18 +68,18 @@ prettyPrintPMRS (PMRS _ _ r s) = do
   tell "%ENDG"
   tell "\n"
 
-prettyPrintRule :: Show a => Rule a => Writer String ()
-prettyPrintRule (Rule f xs p body) = tell $ unwords $ filter (not . null) [show f, unwords xs, showMaybe p,"=",show body]
+prettyPrintRule :: PMRSRule => Writer String ()
+prettyPrintRule (PMRSRule f xs p body) = tell $ unwords $ filter (not . null) [show f, unwords xs, showMaybe p,"=",show body]
 
-prettyPrintRules :: (Show a, Ord a) => SortedSymbol a -> Rules a -> Writer String ()
+prettyPrintRules :: SortedSymbol -> PMRSRules -> Writer String ()
 prettyPrintRules s r = do
   -- Ensure that rules with the start symbol are at the beginning of the list.
-  let (startRules,otherRules) = partition (\rule -> s == ruleF rule) $ concat $ MM.elems r
+  let (startRules,otherRules) = partition (\rule -> s == pmrsRuleF rule) $ concat $ MM.elems r
   let ruleList = startRules ++ otherRules
   forM_ ruleList $ \currentRule -> do
     prettyPrintRule currentRule
     tell ".\n"
   return ()
 
-instance (Show a, Ord a) => PrettyPrint (PMRS a) where
+instance PrettyPrint PMRS where
   prettyPrint pmrs = execWriter $ prettyPrintPMRS pmrs

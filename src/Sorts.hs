@@ -1,30 +1,32 @@
 module Sorts (
-	Sort(..), SortedSymbol(..),
-	createSort,
-	o, (~>)
-	) where
+  Sort(..), SortedSymbol(..),
+  createSort,
+  o, (~>)
+  ) where
 
-data Sort a = Base a
-            | Arrow (Sort a) (Sort a)
-            deriving (Eq,Ord)
+data Sort = Base
+          | DataDomain
+          | Arrow Sort Sort
+          deriving (Eq,Ord)
 
-instance Show a => Show (Sort a) where
-	show (Base b) = show b
-	show (Arrow s1@(Base _) s2) = show s1 ++ " -> " ++ show s2
-	show (Arrow s1 s2) = "(" ++ show s1 ++ ") -> " ++ show s2
+instance Show Sort where
+  show Base               = "o"
+  show DataDomain         = "d"
+  show (Arrow s1@Base s2) = show s1 ++ " -> " ++ show s2
+  show (Arrow s1 s2)      = "(" ++ show s1 ++ ") -> " ++ show s2
 
-createSort :: Int -> a -> Sort a
-createSort 0 b = Base b
-createSort n b = Arrow (Base b) $ createSort (n-1) b
+createSort :: Int -> Sort
+createSort 0 = Base
+createSort n = Arrow Base $ createSort (n-1)
 
-data SortedSymbol a = SortedSymbol String (Sort a)
+data SortedSymbol = SortedSymbol String Sort
   deriving (Eq,Ord)
 
-instance Show a => Show (SortedSymbol a) where
+instance Show SortedSymbol where
   show (SortedSymbol s _) = s
 
-o :: Sort ()
-o = Base ()
+o :: Sort
+o = Base
 
-(~>) :: Sort a -> Sort a -> Sort a
+(~>) :: Sort -> Sort -> Sort
 (~>) s1 s2 = Arrow s1 s2

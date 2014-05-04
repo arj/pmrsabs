@@ -22,44 +22,44 @@ import qualified Data.SetMap as SM
 
 example5 = (example5_1, example5_2, example5_3)
   where
-    x :: Term ()
+    x :: Term
     x = var "x"
-    y :: Term ()
+    y :: Term
     y = var "y"
-    z :: Term ()
+    z :: Term
     z = var "z"
-    n :: Term ()
+    n :: Term
     n = symbol "N" o
-    b :: Term ()
+    b :: Term
     b = symbol "b" o
-    f :: Term ()
+    f :: Term
     f = symbol "F" o
-    g :: Term ()
+    g :: Term
     g = symbol "G" o
-    c :: Term ()
+    c :: Term
     c = symbol "c" o
-    a :: Term ()
+    a :: Term
     a = symbol "a" o
 
-    s1 :: Binding ()
+    s1 :: Binding
     s1 = SM.fromList [("x", app y [b])
                      ,("x",n)
                      ,("y",app f [z])
                      ,("z",a)]
 
-    s2 :: Binding ()
+    s2 :: Binding
     s2 = SM.fromList [("x", app f [y,z])
                      ,("y",z)
                      ,("y",a)
                      ,("z",b)]
 
-    example5_1 :: Set (Term ())
+    example5_1 :: Set Term
     example5_1 = substHead s1 $ app x [c]
 
-    example5_2 :: Set (Term ())
+    example5_2 :: Set Term
     example5_2 = substHead s2 $ app x [c]
 
-    example5_3 :: Set (Term ())
+    example5_3 :: Set Term
     example5_3 = substHead s2 $ app f [x, app g [x]]
 
 m    = var "m"
@@ -116,10 +116,10 @@ mkCons x xs = app cons [x,xs]
 mkFilter p xs = app nFilter [p,xs]
 mkMap2 phi psi lst = app map2 [phi,psi,lst]
 
-example2pmrs :: PMRS ()
+example2pmrs :: PMRS
 example2pmrs = PMRS sigma nonterminals r ssMain
   where
-    sigma :: Set (SortedSymbol ())
+    sigma :: Set SortedSymbol
     sigma = S.fromList [sstrue
                  ,ssfalse
                  ,ssnil
@@ -127,7 +127,7 @@ example2pmrs = PMRS sigma nonterminals r ssMain
                  ,ssz
                  ,sss
                  ]
-    nonterminals :: Set (SortedSymbol ())
+    nonterminals :: Set SortedSymbol
     nonterminals = S.fromList [ssMain
                                 ,ssIf
                                 ,ssNz
@@ -135,23 +135,23 @@ example2pmrs = PMRS sigma nonterminals r ssMain
                                 ,ssS
                                 ,ssN
                                 ,ssListN]
-    r :: Rules ()
-    r = listToRules [Rule ssMain [] (Just m) $ app nFilter [nz, m]
-                   ,Rule ssIf ["a","b"] (Just true) $ a
-                   ,Rule ssIf ["a","b"] (Just false) $ b
-                   ,Rule ssNz [] (Just z) $ false
-                   ,Rule ssNz [] (Just $ app s [varn]) $ true
-                   ,Rule ssFilter ["p"] (Just nil) $ nil
-                   ,Rule ssFilter ["p"] (Just $ app cons [x,xs]) $
+    r :: PMRSRules
+    r = listToRules [PMRSRule ssMain [] (Just m) $ app nFilter [nz, m]
+                   ,PMRSRule ssIf ["a","b"] (Just true) $ a
+                   ,PMRSRule ssIf ["a","b"] (Just false) $ b
+                   ,PMRSRule ssNz [] (Just z) $ false
+                   ,PMRSRule ssNz [] (Just $ app s [varn]) $ true
+                   ,PMRSRule ssFilter ["p"] (Just nil) $ nil
+                   ,PMRSRule ssFilter ["p"] (Just $ app cons [x,xs]) $
                         mkIf (mkCons x $ mkFilter p xs) (mkFilter p xs) (app p [x])
-                   ,Rule ssS [] Nothing $ listN
-                   ,Rule ssN  [] Nothing $ z
-                   ,Rule ssN  [] Nothing $ app s [n]
-                   ,Rule ssListN  [] Nothing $ nil
-                   ,Rule ssListN  [] Nothing $ mkCons n listN
+                   ,PMRSRule ssS [] Nothing $ listN
+                   ,PMRSRule ssN  [] Nothing $ z
+                   ,PMRSRule ssN  [] Nothing $ app s [n]
+                   ,PMRSRule ssListN  [] Nothing $ nil
+                   ,PMRSRule ssListN  [] Nothing $ mkCons n listN
                    ]
 
-example8pmrs :: PMRS ()
+example8pmrs :: PMRS
 example8pmrs = PMRS sigma nonterminals r ssMain
   where
     sigma = S.fromList [ssnil
@@ -163,19 +163,19 @@ example8pmrs = PMRS sigma nonterminals r ssMain
                                 ,ssMap2
                                 ,ssKZero
                                 ,ssKOne]
-    r = listToRules [Rule ssMain [] (Just m) $ mkMap2 kzero kone m
-                    ,Rule ssMap2 ["phi","psi"] (Just nil) $ nil
-                    ,Rule ssMap2 ["phi","psi"] (Just $ app cons [x,xs]) $
+    r = listToRules [PMRSRule ssMain [] (Just m) $ mkMap2 kzero kone m
+                    ,PMRSRule ssMap2 ["phi","psi"] (Just nil) $ nil
+                    ,PMRSRule ssMap2 ["phi","psi"] (Just $ app cons [x,xs]) $
                         mkCons (app phi [x]) (mkMap2 psi phi xs)
-                    ,Rule ssKZero ["x_1"] Nothing zero
-                    ,Rule ssKOne  ["x_2"] Nothing one
+                    ,PMRSRule ssKZero ["x_1"] Nothing zero
+                    ,PMRSRule ssKOne  ["x_2"] Nothing one
                     --
-                    ,Rule ssS [] Nothing nil
-                    ,Rule ssS [] Nothing $ mkCons kzero nS
+                    ,PMRSRule ssS [] Nothing nil
+                    ,PMRSRule ssS [] Nothing $ mkCons kzero nS
                     ]
 
 
-exampleRmatch :: Binding ()
+exampleRmatch :: Binding
 exampleRmatch = xi
   where
     --bnd = S.fromList [(p, nz), (x, n)]
@@ -184,4 +184,4 @@ exampleRmatch = xi
     bnd = S.fromList [(m, nS)]
     t1  = mkCons n listN
     t2  = mkCons x xs
-    xi  = rmatch (PMRS.rules example2pmrs) t1 t2 bnd
+    xi  = rmatch (PMRS.pmrsRules example2pmrs) t1 t2 bnd
