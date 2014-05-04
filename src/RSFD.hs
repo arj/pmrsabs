@@ -31,8 +31,6 @@ type RSFDRules = MultiMap SortedSymbol RSFDRule
 
 type DataDomain = Map String Int
 
-type RankedAlphabet = Set SortedSymbol
-
 data RSFD = RSFD { rsfdTerminals :: RankedAlphabet
   , rsfdNonterminals :: RankedAlphabet
   , rsfdData :: DataDomain
@@ -41,7 +39,10 @@ data RSFD = RSFD { rsfdTerminals :: RankedAlphabet
 }
 
 instance Show RSFD where
-	show (RSFD t nt d r s) = "<" ++ (intercalate ",\n" [showSet t,showSet nt,show d,show $ concat $ MM.elems r,show s]) ++ ">"
+  show (RSFD t nt d r s) =
+    let t'  = rankedAlphabetToSet t
+        nt' = rankedAlphabetToSet nt
+    in "<" ++ (intercalate ",\n" [showSet t',showSet nt',show d,show $ concat $ MM.elems r,show s]) ++ ">"
 
 prettyPrintRSFD :: RSFD -> Writer String ()
 prettyPrintRSFD (RSFD _ _ _ r s) = do
@@ -85,14 +86,16 @@ instance PrettyPrint RSFD where
 --     of type d!
 
 extractDataDomain :: PMRS -> DataDomain
-extractDataDomain (PMRS sigma _ _ _) = M.fromList $ zip (S.toList $ S.map f sigma) [0..]
+extractDataDomain pmrs = M.fromList $ zip lst [0..]
   where
-	f (SortedSymbol s _) = s
+    fn (SortedSymbol s _) = s
+    sigma = S.empty
+    lst   = S.toList $ S.map fn sigma
 
 transformRules :: PMRSRules -> DataDomain -> RSFDRules
 transformRules rules dd = undefined
   where
-  	keys = MM.keys rules
+    keys = MM.keys rules
 
 
 fromWPMRS :: PMRS -> RSFD

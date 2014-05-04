@@ -19,6 +19,8 @@ import qualified Data.Set      as S
 import Data.SetMap (SetMap)
 import qualified Data.SetMap as SM
 
+import Control.Monad
+
 
 example5 = (example5_1, example5_2, example5_3)
   where
@@ -81,7 +83,7 @@ sscons   = SortedSymbol "cons" $ o ~> o ~> o
 ssz      = SortedSymbol "z" o
 sss      = SortedSymbol "s" $ o ~> o
 ssNz     = SortedSymbol "Nz" $ o ~> o
-ssFilter = SortedSymbol "Filter" $ o ~> o ~> o
+ssFilter = SortedSymbol "Filter" $ (o ~> o) ~> o ~> o
 ssS      = SortedSymbol "S" o
 ssN      = SortedSymbol "N" o
 ssListN  = SortedSymbol "ListN" o
@@ -90,7 +92,7 @@ ssKZero  = SortedSymbol "KZero" $ o ~> o
 ssKOne   = SortedSymbol "KOne"  $ o ~> o
 --
 ssMain = SortedSymbol "Main" $ o ~> o
-ssIf   = SortedSymbol "If" $ o ~> o ~> o
+ssIf   = SortedSymbol "If" $ o ~> o ~> o ~> o
 --
 true   = ssToSymbol sstrue
 false  = ssToSymbol ssfalse
@@ -116,19 +118,19 @@ mkCons x xs = app cons [x,xs]
 mkFilter p xs = app nFilter [p,xs]
 mkMap2 phi psi lst = app map2 [phi,psi,lst]
 
-example2pmrs :: PMRS
-example2pmrs = PMRS sigma nonterminals r ssMain
+example2pmrs :: Monad m => m PMRS
+example2pmrs = mkPMRS sigma nonterminals r ssMain
   where
-    sigma :: Set SortedSymbol
-    sigma = S.fromList [sstrue
+    sigma :: RankedAlphabet
+    sigma = mkRankedAlphabet [sstrue
                  ,ssfalse
                  ,ssnil
                  ,sscons
                  ,ssz
                  ,sss
                  ]
-    nonterminals :: Set SortedSymbol
-    nonterminals = S.fromList [ssMain
+    nonterminals :: RankedAlphabet
+    nonterminals = mkRankedAlphabet [ssMain
                                 ,ssIf
                                 ,ssNz
                                 ,ssFilter
@@ -151,15 +153,15 @@ example2pmrs = PMRS sigma nonterminals r ssMain
                    ,PMRSRule ssListN  [] Nothing $ mkCons n listN
                    ]
 
-example8pmrs :: PMRS
-example8pmrs = PMRS sigma nonterminals r ssMain
+example8pmrs :: Monad m => m PMRS
+example8pmrs = mkPMRS sigma nonterminals r ssMain
   where
-    sigma = S.fromList [ssnil
+    sigma = mkRankedAlphabet [ssnil
                  ,sscons
                  ,sszero
                  ,ssone
                  ]
-    nonterminals = S.fromList [ssMain
+    nonterminals = mkRankedAlphabet [ssMain
                                 ,ssMap2
                                 ,ssKZero
                                 ,ssKOne]
@@ -175,13 +177,13 @@ example8pmrs = PMRS sigma nonterminals r ssMain
                     ]
 
 
-exampleRmatch :: Binding
-exampleRmatch = xi
+exampleRmatch :: Monad m => m Binding
+exampleRmatch = do
+    rs <- liftM getRules $ example2pmrs
+    let bnd = S.fromList [(m, nS)]
+        t1  = mkCons n listN
+        t2  = mkCons x xs
+    return $ rmatch rs t1 t2 bnd
   where
-    --bnd = S.fromList [(p, nz), (x, n)]
-    --t1  = (app p [x])
-    --t2  = true
-    bnd = S.fromList [(m, nS)]
-    t1  = mkCons n listN
-    t2  = mkCons x xs
-    xi  = rmatch (PMRS.pmrsRules example2pmrs) t1 t2 bnd
+    
+    

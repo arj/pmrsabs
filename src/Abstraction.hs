@@ -24,6 +24,9 @@ import qualified Data.SetMap as SM
 --import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 
+import Data.Map (Map)
+import qualified Data.Map as M
+
 import Data.Set (Set)
 import qualified Data.Set as S
 
@@ -110,12 +113,14 @@ rmatch r u1 p1 bnd
 -- | Extracts all simple terms begining with a variable or nonterminal from
 -- a given PMRS with a starting symbol of the included 0-order HORS.
 simpleTerms :: SortedSymbol -> PMRS -> Set Term
-simpleTerms gS (PMRS _ _ r mainSymbol) = S.insert mainS $ allSubT
+simpleTerms gS pmrs = S.insert mainS $ allSubT
   where
+    r       = getRules pmrs
+    mainSmb = getStartSymbol pmrs
     rhs     = map pmrsRuleBody $ concat $ MM.elems r
     allSubT = S.unions $ map subterms' rhs
     mainS   = app main [s]
-    main    = ssToSymbol mainSymbol
+    main    = ssToSymbol mainSmb
     s       = ssToSymbol gS
 
 -- | One step of the binding analysis.
@@ -138,9 +143,10 @@ step rs bnd u = SM.union bnd $ SM.unions $ concat $ map bndPerTerms $ S.toList r
     bndFromRule (App _ ts) (PMRSRule _ xs Nothing  _) = SM.fromList $ zip xs ts
 
 bindingAnalysisOneRound :: SortedSymbol -> PMRS -> Binding -> Binding
-bindingAnalysisOneRound gs pmrs@(PMRS _ _ rs _) bnd = foldl (step rs) bnd terms
+bindingAnalysisOneRound gs pmrs bnd = foldl (step rs) bnd terms
   where
-      terms = S.toList $ simpleTerms gs pmrs
+    rs    = getRules pmrs
+    terms = S.toList $ simpleTerms gs pmrs
 
 bindingAnalysis :: SortedSymbol -> PMRS -> Binding -> Binding
 bindingAnalysis gs pmrs bnd
@@ -181,12 +187,16 @@ headToUpper (x:xs) = toUpper x : xs
 
 -- | Generates a weak PMRS from a start symbol (0-order HORS included into the PMRS),
 -- and a PMRS.
-wPMRS :: SortedSymbol -> PMRS -> PMRS
-wPMRS gs p@(PMRS sigma nt rs s) = PMRS sigma nt' rs' s
+wPMRS :: Monad m => SortedSymbol -> PMRS -> m PMRS
+wPMRS gs pmrs = mkPMRS sigma nt' rs' s
   where
-    nt' = S.union nt instnt
-    rs' = MM.union (weakPMrules rs) $ instrs
-    bnd = bindingAnalysis gs p SM.empty
+    sigma = getTerminals pmrs
+    nt    = getNonterminals pmrs
+    rs    = getRules pmrs
+    s     = getStartSymbol pmrs
+    nt'   = M.union nt $ mkRankedAlphabet $ S.toList instnt
+    rs'   = MM.union (weakPMrules rs) $ instrs
+    bnd   = bindingAnalysis gs pmrs SM.empty
     --
     (instnt,instrs) = instantiationRules bnd
 

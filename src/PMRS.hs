@@ -1,7 +1,9 @@
 {-# LANGUAGE TypeSynonymInstances,FlexibleInstances #-}
 module PMRS (
-  PMRSRule(..), PMRS(..),
+  PMRSRule(..), PMRS,
   PMRSRules,
+
+  mkPMRS, getTerminals, getNonterminals, getRules, getStartSymbol,
 
   listToRules, matchingRules,
   prettyPrintPMRS,
@@ -19,6 +21,11 @@ import qualified Data.MultiMap as MM
 import Data.Set (Set)
 import qualified Data.Set as S
 
+import Data.Map (Map)
+import qualified Data.Map as M
+
+import Data.Maybe
+import Control.Monad
 import Control.Monad.Writer
 
 data PMRSRule = PMRSRule { pmrsRuleF :: SortedSymbol
@@ -31,6 +38,16 @@ matchingRules :: PMRSRules -> Term -> [PMRSRule]
 matchingRules rs (App (Nt f) _) = MM.lookup f rs
 matchingRules _  (App _ _) = []
 
+variableTypes :: PMRSRule -> TypeBinding
+variableTypes (PMRSRule (SortedSymbol f srt) xs p _) = M.fromList alltypes
+  where
+    alltypes  = xstypes ++ ptypes
+    ptypes    = maybe [] typesP p
+    typesP p' = zip (S.toList $ fv p') $ repeat o
+    types     = init $ sortToList srt
+    xstypes   = zip xs types
+
+
 type PMRSRules = MultiMap SortedSymbol PMRSRule
 
 instance Show PMRSRule where
@@ -41,11 +58,30 @@ listToRules lst = MM.fromList $ map fPairUp lst
   where
     fPairUp r@(PMRSRule f _ _ _) = (f,r)
 
-data PMRS = PMRS { pmrsTerminals :: Set SortedSymbol
-  , pmrsNonterminals :: Set SortedSymbol
-  , pmrsRules :: PMRSRules
-  , pmrsStart :: SortedSymbol
-}
+data PMRS = PMRS RankedAlphabet RankedAlphabet PMRSRules SortedSymbol
+
+getTerminals :: PMRS -> RankedAlphabet
+getTerminals (PMRS f _ _ _) = f
+
+getNonterminals :: PMRS -> RankedAlphabet
+getNonterminals (PMRS _ f _ _) = f
+
+getRules :: PMRS -> PMRSRules
+getRules (PMRS _ _ f _) = f
+
+getStartSymbol :: PMRS -> SortedSymbol
+getStartSymbol (PMRS _ _ _ f) = f
+
+mkPMRS :: Monad m => RankedAlphabet -> RankedAlphabet -> PMRSRules -> SortedSymbol -> m PMRS
+mkPMRS t nt r s = do
+  let rules = concat $ MM.elems r
+  forM_ rules $ \r -> do
+    let bnd = variableTypes r
+    srt <- typeCheck bnd $ pmrsRuleBody r
+    if srt == o
+      then return ()
+      else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)
+  return $ PMRS t nt r s
 
 cleanup :: PMRS -> PMRS
 -- | Removes rules if they are not used anywhere.
@@ -58,7 +94,10 @@ cleanup (PMRS sigma n r s) = PMRS sigma n r' s
     r'  = MM.filter (\(PMRSRule f _ _ _) -> S.member f nts) r
 
 instance Show PMRS where
-  show (PMRS t nt r s) = "<" ++ (intercalate ",\n" [showSet t,showSet nt,show $ concat $ MM.elems r,show s]) ++ ">"
+  show (PMRS t nt r s) =
+    let t'  = rankedAlphabetToSet t
+        nt' = rankedAlphabetToSet nt
+    in "<" ++ (intercalate ",\n" [showSet t',showSet nt',show $ concat $ MM.elems r,show s]) ++ ">"
 
 prettyPrintPMRS :: PMRS -> Writer String ()
 prettyPrintPMRS (PMRS _ _ r s) = do

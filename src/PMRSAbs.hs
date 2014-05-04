@@ -10,6 +10,9 @@ import qualified Data.MultiMap as MM
 import           Data.Set      (Set)
 import qualified Data.Set      as S
 
+import           Data.Map      (Map)
+import qualified Data.Map      as M
+
 tpe :: Term
 tpe = var "phi"
 
@@ -22,8 +25,8 @@ ntS = SortedSymbol "S" $ Base
 rule1 :: PMRSRule
 rule1 = PMRSRule ntF ["x1","x2"] Nothing tpe
 
-pmrs1 :: PMRS
-pmrs1 = PMRS S.empty S.empty MM.empty ntS
+pmrs1 :: Monad m => m PMRS
+pmrs1 = mkPMRS M.empty M.empty MM.empty ntS
 
 
 example5_1 :: Set Term
@@ -42,4 +45,5 @@ main = do
 	--print example5_2
 	--print example5_3
 	--print example2pmrs
-	print exampleRmatch
+	res <- exampleRmatch
+	print res
