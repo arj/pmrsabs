@@ -3,7 +3,7 @@ module Term (
 
   app, var, terminal, nonterminal, symbol, ssToSymbol, headToTerm,
   fv, subst, substAll, subterms, subterms', getN, replaceVarsBy,
-  replaceNt, typeCheck, caseVars
+  replaceNt, typeCheck, caseVars, height
   ) where
 
 import Aux
@@ -146,3 +146,9 @@ caseVars :: Term -> Set String
 caseVars (App _ ts ) = S.unions $ map caseVars ts
 caseVars (D _      ) = S.empty
 caseVars (Case x ts) = S.insert x $ S.unions $ map caseVars ts
+
+height :: Term -> Int
+-- ^ /O(n)/ Returns the height of a term.
+height (App _ ts ) = succ $ maximum $ 0 : map height ts
+height (Case _ ts) = succ $ maximum $ 0 : map height ts
+height (D _      ) = 1
