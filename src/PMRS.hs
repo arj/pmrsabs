@@ -12,7 +12,8 @@ module PMRS (
 
   getPMVariables,
 
-  step
+  step, stepSingle,
+  reduce
   ) where
 
 import Aux
@@ -147,14 +148,25 @@ instance PrettyPrint PMRS where
 
 -- | One reduction step of a given term using the rules from a PMRS.
 -- A step means a substitution is applied on every nonterminal present in t.
-step :: PMRS -> Term -> Term
-step pmrs t = replaceNt (stepSingle pmrs) t
+step :: PMRS -> Term -> [Term]
+step pmrs t = replaceNtMany (stepSingle pmrs) t
 
 -- | Given a nonterminal with arguments reduces one step.
 -- If the symbol requires pattern matching to be reduced
 -- and it is not yet clear which case is applicable, nothing
 -- happens.
-stepSingle :: PMRS -> Symbol -> [Term] -> Term
-stepSingle pmrs nt args = undefined
+stepSingle :: PMRS -> Symbol -> [Term] -> [Term]
+stepSingle pmrs nt args = results
   where
-    rules = matchingRules (getRules pmrs) $ App (Nt nt) args
+    results = filterMap (\r -> reduce r args) rules
+    rules   = matchingRules (getRules pmrs) $ App (Nt nt) args
+
+reduce :: PMRSRule -> [Term] -> Maybe Term
+reduce (PMRSRule _ xs Nothing  t) args = return $ substAll (zip xs args) t
+reduce (PMRSRule _ xs (Just p) t) args =
+  case isMatching p parg of
+    Nothing   -> Nothing
+    Just sbst -> return $ substAll ((zip xs narg) ++ sbst) t
+  where
+    narg = init args
+    parg = last args

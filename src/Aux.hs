@@ -21,3 +21,9 @@ allTheSame :: (Eq a) => [a] -> Bool
 -- ^ Checks if the members of a list are all the same. /allTheSame [] == True/.
 allTheSame [] = True
 allTheSame xs = and $ map (== head xs) (tail xs)
+
+filterMap :: (a -> Maybe b) -> [a] -> [b]
+filterMap _ []     = []
+filterMap f (x:xs) = case f x of
+	                   Just x' -> x' : filterMap f xs
+	                   Nothing -> filterMap f xs

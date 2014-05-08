@@ -1,9 +1,13 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Term (
   Head(..), Term(..), TypeBinding,
 
   app, var, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
   fv, subst, substAll, subterms, subterms', getN, replaceVarsBy,
-  replaceNt, typeCheck, caseVars, height
+  replaceNt, replaceNtMany, typeCheck, caseVars, height,
+
+  isMatching, isMatchingErr, runM, runIsMatching
   ) where
 
 import Aux
@@ -14,6 +18,7 @@ import qualified Data.Set as S
 import Data.Map (Map)
 import qualified Data.Map as M
 import Control.Monad
+import Control.Monad.Error
 
 type Var = String
 
@@ -141,8 +146,13 @@ typeCheck bnd t@(App smb ts) = do
 -- | Replaces nonterminals, i.e. call a function for each nonterminal and
 -- providing its arguments and create a new term instead.
 replaceNt :: (Symbol -> [Term] -> Term) -> Term -> Term
-replaceNt f (App (Nt s) ts) = app (f s ts) $ map (replaceNt f) ts
-replaceNt f (App h      ts) = App h        $ map (replaceNt f) ts
+replaceNt f term = head $ replaceNtMany (\s t -> [f s t]) term
+
+-- | Replaces nonterminals, i.e. call a function for each nonterminal and
+-- providing its arguments and create a new term instead.
+replaceNtMany :: (Symbol -> [Term] -> [Term]) -> Term -> [Term]
+replaceNtMany f (App (Nt s) ts) = [ app h res | h <- (f s ts), res <- map (replaceNtMany f) ts]
+replaceNtMany f (App h      ts) = [ App h res | res <- map (replaceNtMany f) ts]
 
 caseVars :: Term -> Set String
 -- ^ Returns all variables that are used in a case expression.
@@ -155,3 +165,51 @@ height :: Term -> Int
 height (App _ ts ) = succ $ maximum $ 0 : map height ts
 height (Case _ ts) = succ $ maximum $ 0 : map height ts
 height (D _      ) = 1
+
+-- | Checks if a given pattern is matched by a term.
+-- The pattern may only consist of variables and terminal
+-- symbols. The term may only consist of terminal symbols.
+isMatching :: Term -> Term -> Maybe [(String,Term)]
+isMatching (App (Var x) [] ) t@(App (T _ ) _  ) = return [(x,t)]
+isMatching (App (T f1 ) ts1)   (App (T f2) ts2) =
+  if f1 /= f2
+    then Nothing
+    else do
+      bnd <- mapM (uncurry isMatching) (zip ts1 ts2)
+      return $ concat bnd
+isMatching p _ = error (show p ++ " is no valid pattern") -- TODO Use ErrorT instead of Error!
+
+---------------------------------------------------------
+---------------------------------------------------------
+---------------------------------------------------------
+
+data MatchingError = MEInvalidPattern Term
+                   | MEUndefined String
+                   deriving (Show)
+
+instance Error MatchingError where
+  noMsg  = MEUndefined ""
+  strMsg = MEUndefined
+
+newtype Matcher a = M {
+  runM :: ErrorT MatchingError Maybe a
+} deriving (Monad, MonadError MatchingError)
+
+-- | Checks if a given pattern is matched by a term.
+-- The pattern may only consist of variables and terminal
+-- symbols. The term may only consist of terminal symbols.
+isMatchingErr :: Term -> Term -> Matcher [(String,Term)]
+isMatchingErr (App (Var x) [] ) t@(App (T _ ) _  ) = return [(x,t)]
+isMatchingErr (App (T f1 ) ts1)   (App (T f2) ts2) =
+  if f1 /= f2
+    then M (lift Nothing)
+    else do
+      bnd <- mapM (uncurry isMatchingErr) (zip ts1 ts2)
+      return $ concat bnd
+isMatchingErr p _ = throwError (MEInvalidPattern p)
+
+runIsMatching :: Matcher a -> Either MatchingError (Maybe a)
+runIsMatching m = case runErrorT (runM m) of
+                    (Just (Left  r)) -> Left  r
+                    (Just (Right r)) -> Right (Just r)
+                    (Nothing)        -> Right Nothing
