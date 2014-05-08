@@ -3,6 +3,7 @@ import           Examples hiding (main)
 import           PMRS
 import           Sorts
 import           Term
+import           PMRSParser
 
 --import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
@@ -23,7 +24,7 @@ ntS :: SortedSymbol
 ntS = SortedSymbol "S" $ Base
 
 rule1 :: PMRSRule
-rule1 = PMRSRule ntF ["x1","x2"] Nothing tpe
+rule1 = PMRSRule (ssF ntF) ["x1","x2"] Nothing tpe
 
 pmrs1 :: Monad m => m PMRS
 pmrs1 = mkPMRS M.empty M.empty MM.empty ntS

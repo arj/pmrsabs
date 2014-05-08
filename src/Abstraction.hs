@@ -1,18 +1,17 @@
 module Abstraction
---(
---  wPMRS, sPMRS,
---  Binding,
---  substHead,
---  rmatch,
---  step,
---  simpleTerms,
---  bindingAnalysis
---  )
+(
+  wPMRS, sPMRS,
+  Binding,
+  substHead,
+  rmatch,
+  simpleTerms,
+  bindingAnalysis
+  )
 where
 
 import Prelude hiding (pi)
 
-import PMRS
+import PMRS hiding (step)
 import Term
 import Sorts
 
@@ -99,7 +98,7 @@ rmatch r u1 p1 bnd
       let nonemptyRules = filter nonempty rulesForf in
       SM.unions $ map (\(PMRSRule _ _ _ t) -> rmatch r t p bnd) $ nonemptyRules
       where
-        rulesForf = MM.lookup f r
+        rulesForf = MM.lookup (ssF f) r
         bnd' = S.insert (u,p) bnd
         v = last ts
         --
@@ -177,8 +176,9 @@ instantiationRules bnd = (S.fromList symbols, listToRules rs)
     (symbols, rs) = unzip $ map (uncurry bndToRule) $ SM.toList bnd
     -- TODO Correct sort missing!
     bndToRule x t =
-      let smb = (SortedSymbol (headToUpper x) o) in
-      (smb, PMRSRule smb [] Nothing t)
+      let f   = headToUpper x
+          smb = SortedSymbol f o
+      in (smb, PMRSRule f [] Nothing t)
 
 -- | Transforms the first letter in a string to upper case.
 headToUpper :: String -> String
@@ -190,15 +190,19 @@ headToUpper (x:xs) = toUpper x : xs
 wPMRS :: Monad m => SortedSymbol -> PMRS -> m PMRS
 wPMRS gs pmrs = mkPMRS sigma nt' rs' s
   where
-    sigma = getTerminals pmrs
-    nt    = getNonterminals pmrs
-    rs    = getRules pmrs
-    s     = getStartSymbol pmrs
-    nt'   = M.union nt $ mkRankedAlphabet $ S.toList instnt
-    rs'   = MM.union (weakPMrules rs) $ instrs
-    bnd   = bindingAnalysis gs pmrs SM.empty
+    sigma  = getTerminals pmrs
+    nt     = getNonterminals pmrs
+    rs     = getRules pmrs
+    s      = getStartSymbol pmrs
+    nt'    = M.union nt $ mkRankedAlphabet $ S.toList instnt
+    rs'    = MM.union (weakPMrules rs) $ instrs
+    bnd    = bindingAnalysis gs pmrs SM.empty
     --
-    (instnt,instrs) = instantiationRules bnd
+    pmvars = getPMVariables pmrs
+    --
+    bndpm  = SM.filterWithKey (\(k,_) -> S.member k pmvars) bnd
+    --
+    (instnt,instrs) = instantiationRules bndpm
 
 sPMRS :: PMRS -> PMRS
 sPMRS = undefined

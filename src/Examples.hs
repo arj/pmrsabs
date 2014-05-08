@@ -138,20 +138,25 @@ example2pmrs = mkPMRS sigma nonterminals r ssMain
                                 ,ssN
                                 ,ssListN]
     r :: PMRSRules
-    r = listToRules [PMRSRule ssMain [] (Just m) $ app nFilter [nz, m]
-                   ,PMRSRule ssIf ["a","b"] (Just true) $ a
-                   ,PMRSRule ssIf ["a","b"] (Just false) $ b
-                   ,PMRSRule ssNz [] (Just z) $ false
-                   ,PMRSRule ssNz [] (Just $ app s [varn]) $ true
-                   ,PMRSRule ssFilter ["p"] (Just nil) $ nil
-                   ,PMRSRule ssFilter ["p"] (Just $ app cons [x,xs]) $
+    r = listToRules [PMRSRule "Main" [] (Just m) $ app nFilter [nz, m]
+                   ,PMRSRule "If" ["a","b"] (Just true) $ a
+                   ,PMRSRule "If" ["a","b"] (Just false) $ b
+                   ,PMRSRule "Nz" [] (Just z) $ false
+                   ,PMRSRule "Nz" [] (Just $ app s [varn]) $ true
+                   ,PMRSRule "Filter" ["p"] (Just nil) $ nil
+                   ,PMRSRule "Filter" ["p"] (Just $ app cons [x,xs]) $
                         mkIf (mkCons x $ mkFilter p xs) (mkFilter p xs) (app p [x])
-                   ,PMRSRule ssS [] Nothing $ listN
-                   ,PMRSRule ssN  [] Nothing $ z
-                   ,PMRSRule ssN  [] Nothing $ app s [n]
-                   ,PMRSRule ssListN  [] Nothing $ nil
-                   ,PMRSRule ssListN  [] Nothing $ mkCons n listN
+                   ,PMRSRule "S" [] Nothing $ listN
+                   ,PMRSRule "N"  [] Nothing $ z
+                   ,PMRSRule "N"  [] Nothing $ app s [n]
+                   ,PMRSRule "ListN"  [] Nothing $ nil
+                   ,PMRSRule "ListN"  [] Nothing $ mkCons n listN
                    ]
+
+example2wpmrs :: Monad m => m PMRS
+example2wpmrs = do
+    pmrs <- example2pmrs
+    wPMRS ssS pmrs
 
 example8pmrs :: Monad m => m PMRS
 example8pmrs = mkPMRS sigma nonterminals r ssMain
@@ -165,15 +170,15 @@ example8pmrs = mkPMRS sigma nonterminals r ssMain
                                 ,ssMap2
                                 ,ssKZero
                                 ,ssKOne]
-    r = listToRules [PMRSRule ssMain [] (Just m) $ mkMap2 kzero kone m
-                    ,PMRSRule ssMap2 ["phi","psi"] (Just nil) $ nil
-                    ,PMRSRule ssMap2 ["phi","psi"] (Just $ app cons [x,xs]) $
+    r = listToRules [PMRSRule "Main" [] (Just m) $ mkMap2 kzero kone m
+                    ,PMRSRule "Map2" ["phi","psi"] (Just nil) $ nil
+                    ,PMRSRule "Map2" ["phi","psi"] (Just $ app cons [x,xs]) $
                         mkCons (app phi [x]) (mkMap2 psi phi xs)
-                    ,PMRSRule ssKZero ["x_1"] Nothing zero
-                    ,PMRSRule ssKOne  ["x_2"] Nothing one
+                    ,PMRSRule "KZero" ["x_1"] Nothing zero
+                    ,PMRSRule "KOne"  ["x_2"] Nothing one
                     --
-                    ,PMRSRule ssS [] Nothing nil
-                    ,PMRSRule ssS [] Nothing $ mkCons kzero nS
+                    ,PMRSRule "S" [] Nothing nil
+                    ,PMRSRule "S" [] Nothing $ mkCons zero nS
                     ]
 
 

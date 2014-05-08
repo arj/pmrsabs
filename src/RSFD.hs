@@ -5,6 +5,7 @@ import Aux
 import Sorts
 import Term
 import PMRS
+import CommonRS
 
 import Data.List
 
@@ -19,7 +20,11 @@ import qualified Data.MultiMap as MM
 
 import Control.Monad.Writer
 
-data RSFDRule = RSFDRule { rsfdRuleHead :: SortedSymbol
+import Data.Maybe
+
+import Debug.Trace
+
+data RSFDRule = RSFDRule { rsfdRuleHead :: Symbol
   , rsfdRuleVars :: [String]
   , rsfdBody     :: Term
 } deriving (Eq, Ord)
@@ -27,16 +32,39 @@ data RSFDRule = RSFDRule { rsfdRuleHead :: SortedSymbol
 instance Show RSFDRule where
   show (RSFDRule f xs body) = unwords $ filter (not . null) [show f, unwords xs, "=>",show body]
 
-type RSFDRules = MultiMap SortedSymbol RSFDRule
+type RSFDRules = Rules RSFDRule
 
-type DataDomain = Map String Int
+type Data = Map Term Int
 
 data RSFD = RSFD { rsfdTerminals :: RankedAlphabet
   , rsfdNonterminals :: RankedAlphabet
-  , rsfdData :: DataDomain
-  , rsfdRules :: RSFDRules
-  , rsfdStart :: SortedSymbol
+  , rsfdData         :: Data
+  , rsfdRules        :: RSFDRules
+  , rsfdStart        :: SortedSymbol
 }
+
+mkRSFDRules :: [RSFDRule] -> RSFDRules
+mkRSFDRules lst = MM.fromList $ map fPairUp lst
+  where
+    fPairUp r = (rsfdRuleHead r,r)
+
+typeOfVariables :: RSFDRule -> RankedAlphabet -> TypeBinding
+typeOfVariables (RSFDRule f xs _) ra = M.fromList xstypes
+  where
+    srt     = ra M.! f
+    types   = init $ sortToList srt
+    xstypes = zip xs types
+
+mkRSFD :: Monad m => RankedAlphabet -> RankedAlphabet -> Data -> RSFDRules -> SortedSymbol -> m RSFD
+mkRSFD sigma n d r s = do
+  let rules = concat $ MM.elems r
+  forM_ rules $ \r' -> do
+    let bnd = M.unions [sigma, n, typeOfVariables r' n]
+    srt <- typeCheck bnd $ rsfdBody r'
+    if srt == o
+      then return ()
+      else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)
+  return $ RSFD sigma n d r s
 
 instance Show RSFD where
   show (RSFD t nt d r s) =
@@ -45,7 +73,7 @@ instance Show RSFD where
     in "<" ++ (intercalate ",\n" [showSet t',showSet nt',show d,show $ concat $ MM.elems r,show s]) ++ ">"
 
 prettyPrintRSFD :: RSFD -> Writer String ()
-prettyPrintRSFD (RSFD _ _ _ r s) = do
+prettyPrintRSFD (RSFD _ _ _ r (SortedSymbol s _)) = do
   tell "%BEGING"
   tell "\n"
   prettyPrintRules s r
@@ -55,7 +83,7 @@ prettyPrintRSFD (RSFD _ _ _ r s) = do
 prettyPrintRule :: RSFDRule => Writer String ()
 prettyPrintRule (RSFDRule f xs body) = tell $ unwords $ filter (not . null) [show f, unwords xs, "=",show body]
 
-prettyPrintRules :: SortedSymbol -> RSFDRules -> Writer String ()
+prettyPrintRules :: Symbol -> RSFDRules -> Writer String ()
 prettyPrintRules s r = do
   -- Ensure that rules with the start symbol are at the beginning of the list.
   let (startRules,otherRules) = partition ((s ==) . rsfdRuleHead) $ concat $ MM.elems r
@@ -85,18 +113,98 @@ instance PrettyPrint RSFD where
 --  4. CPS transformation if necessary? We cannot return values
 --     of type d!
 
-extractDataDomain :: PMRS -> DataDomain
-extractDataDomain pmrs = M.fromList $ zip lst [0..]
+extractData :: PMRS -> Data
+extractData pmrs = M.fromList $ zip lst [0..]
   where
-    fn (SortedSymbol s _) = s
-    sigma = S.empty
-    lst   = S.toList $ S.map fn sigma
+    rules   = concat $ MM.elems $ getRules pmrs
+    lst     = S.toList $ foldl extract S.empty rules
+    --
+    extract ack (PMRSRule _ _ p _) = maybe ack (checkAndInsert ack) p
+    --
+    -- We don't accept plain variable patterns as domains, as we do not
+    -- pattern match on anything here.
+    checkAndInsert ack (App (Var _) []) = ack
+    checkAndInsert ack p'               = flip S.insert ack $ replaceVarsBy "_" p'
 
-transformRules :: PMRSRules -> DataDomain -> RSFDRules
-transformRules rules dd = undefined
+errStr :: String
+errStr = "err"
+
+errSymbol :: Term
+errSymbol = terminal errStr o
+
+-- | Checks if the PMRS rule is a pm rule, including pseudo pm.
+pIsPMRule :: PMRSRule -> Bool
+pIsPMRule (PMRSRule _ _ p _) = isJust p
+
+-- | Checks if the PMRS rule is a pseudo rule, i.e. the pattern is a variable.
+pIsPseudo :: PMRSRule -> Bool
+pIsPseudo (PMRSRule _ _ (Just (App (Var _) _)) _) = True
+pIsPseudo (PMRSRule _ _ (Just _              ) _) = False
+
+-- | Transforms a given PMRS rule into an RSFD rule if it is a non-pm
+-- rule or a pseudo pm rule, i.e. the pattern is a variable, see pIsPMRule.
+pmrsRuleToRSDFRule :: PMRSRule -> RSFDRule
+pmrsRuleToRSDFRule (PMRSRule f xs Nothing t)                 = RSFDRule f xs t
+pmrsRuleToRSDFRule (PMRSRule f xs (Just (App (Var px) _)) t) = RSFDRule f (xs ++ [px]) t
+pmrsRuleToRSDFRule _ = error "Pattern matching rules cannot be converted directly."
+
+extractPT :: Data -> PMRSRule -> (Int, Term)
+extractPT dd (PMRSRule _ _ (Just p) t) = (dataLookup p dd,t)
+
+-- TODO t -> t' by replacing all
+transformRules :: PMRSRules -> Data -> RSFDRules
+transformRules rules dd = MM.unions [rsfdNormalRules, rsfdPmRules, rsfdPseudoPmRules]
   where
-    keys = MM.keys rules
+    -- Extract all groups of pattern matching rules
+    -- Now for all pattern matching rules
+    keys                     = MM.keys pmRules
+    (allPmRules,normalRules) = MM.partition pIsPMRule rules
+    (pseudoPmRules,pmRules)  = MM.partition pIsPseudo allPmRules
+    --
+    rsfdNormalRules          = MM.map pmrsRuleToRSDFRule normalRules
+    rsfdPseudoPmRules        = MM.map pmrsRuleToRSDFRule pseudoPmRules
+    rsfdPmRules              = mkRSFDRules $ map combineRulesPerKey keys
+    --
+    -- | For each nonterminal symbol (key) the corresponding pattern
+    -- matching rule is extracted and a RSFD rule is created that has
+    -- a case expression with the corresponding terms at the corresponding
+    -- positions, and err if the pattern is not checked for in this rule
+    combineRulesPerKey :: Symbol -> RSFDRule
+    combineRulesPerKey key = RSFDRule f (xs ++ ["_p"]) body
+      where
+        body = Case "_p" ts'
+        --
+        ts' = map placeTi [0..(M.size dd)-1]
+        --
+        placeTi :: Int -> Term
+        -- ^ Looks up the correct term for the pattern or returns err symbol.
+        placeTi idx = fromMaybe errSymbol $ lookup idx pIndexTs -- TODO Type conversion from /o/ to /d/ is still necessary!
+        --
+        headRule = head $ MM.lookup key pmRules
+        f        = pmrsRuleF headRule
+        xs       = pmrsRuleVars headRule
+        --
+        pIndexTs          = map (extractPT dd) $ MM.lookup key pmRules
 
+dataLookup :: Term -> Data -> Int
+dataLookup p dd = fromJust $ M.lookup p' dd
+  where
+    p' = replaceVarsBy "_" p
 
-fromWPMRS :: PMRS -> RSFD
-fromWPMRS = undefined
+-- TODO Missing: Change type of pattern-matching
+-- nonterminals from F: s -> ... -> o -> o to F: s -> ... -> d -> o!
+fromWPMRS :: Monad m => PMRS -> m RSFD
+fromWPMRS pmrs = mkRSFD sg' nt' dd rs' st
+  where
+    (sg,nt,rs,st) = unmakePMRS pmrs
+    --
+    sg' = M.insert errStr o sg
+    nt' = M.mapWithKey adjustSorts $ nt
+    dd  = extractData pmrs
+    rs' = transformRules rs dd
+    pmF = MM.keys $ filterRealPMRule rs
+    --
+    adjustSorts f srt =
+      if f `elem` pmF
+        then replaceLastArg Data srt
+        else srt -- No changes
