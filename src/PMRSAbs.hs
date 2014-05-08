@@ -20,14 +20,11 @@ tpe = var "phi"
 ntF :: SortedSymbol
 ntF = SortedSymbol "F" $ Base
 
-ntS :: SortedSymbol
-ntS = SortedSymbol "S" $ Base
-
 rule1 :: PMRSRule
 rule1 = PMRSRule (ssF ntF) ["x1","x2"] Nothing tpe
 
 pmrs1 :: Monad m => m PMRS
-pmrs1 = mkPMRS M.empty M.empty MM.empty ntS
+pmrs1 = mkPMRS M.empty M.empty MM.empty "S"
 
 
 example5_1 :: Set Term

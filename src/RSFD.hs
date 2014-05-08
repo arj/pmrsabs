@@ -40,7 +40,7 @@ data RSFD = RSFD { rsfdTerminals :: RankedAlphabet
   , rsfdNonterminals :: RankedAlphabet
   , rsfdData         :: Data
   , rsfdRules        :: RSFDRules
-  , rsfdStart        :: SortedSymbol
+  , rsfdStart        :: Symbol
 }
 
 mkRSFDRules :: [RSFDRule] -> RSFDRules
@@ -55,7 +55,7 @@ typeOfVariables (RSFDRule f xs _) ra = M.fromList xstypes
     types   = init $ sortToList srt
     xstypes = zip xs types
 
-mkRSFD :: Monad m => RankedAlphabet -> RankedAlphabet -> Data -> RSFDRules -> SortedSymbol -> m RSFD
+mkRSFD :: Monad m => RankedAlphabet -> RankedAlphabet -> Data -> RSFDRules -> Symbol -> m RSFD
 mkRSFD sigma n d r s = do
   let rules = concat $ MM.elems r
   forM_ rules $ \r' -> do
@@ -73,7 +73,7 @@ instance Show RSFD where
     in "<" ++ (intercalate ",\n" [showSet t',showSet nt',show d,show $ concat $ MM.elems r,show s]) ++ ">"
 
 prettyPrintRSFD :: RSFD -> Writer String ()
-prettyPrintRSFD (RSFD _ _ _ r (SortedSymbol s _)) = do
+prettyPrintRSFD (RSFD _ _ _ r s) = do
   tell "%BEGING"
   tell "\n"
   prettyPrintRules s r
@@ -130,7 +130,7 @@ errStr :: String
 errStr = "err"
 
 errSymbol :: Term
-errSymbol = terminal errStr o
+errSymbol = terminal errStr
 
 -- | Checks if the PMRS rule is a pm rule, including pseudo pm.
 pIsPMRule :: PMRSRule -> Bool

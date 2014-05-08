@@ -98,7 +98,7 @@ rmatch r u1 p1 bnd
       let nonemptyRules = filter nonempty rulesForf in
       SM.unions $ map (\(PMRSRule _ _ _ t) -> rmatch r t p bnd) $ nonemptyRules
       where
-        rulesForf = MM.lookup (ssF f) r
+        rulesForf = MM.lookup f r
         bnd' = S.insert (u,p) bnd
         v = last ts
         --
@@ -111,7 +111,7 @@ rmatch r u1 p1 bnd
 
 -- | Extracts all simple terms begining with a variable or nonterminal from
 -- a given PMRS with a starting symbol of the included 0-order HORS.
-simpleTerms :: SortedSymbol -> PMRS -> Set Term
+simpleTerms :: Symbol -> PMRS -> Set Term
 simpleTerms gS pmrs = S.insert mainS $ allSubT
   where
     r       = getRules pmrs
@@ -119,8 +119,8 @@ simpleTerms gS pmrs = S.insert mainS $ allSubT
     rhs     = map pmrsRuleBody $ concat $ MM.elems r
     allSubT = S.unions $ map subterms' rhs
     mainS   = app main [s]
-    main    = ssToSymbol mainSmb
-    s       = ssToSymbol gS
+    main    = sToSymbol mainSmb
+    s       = sToSymbol gS
 
 -- | One step of the binding analysis.
 -- @step rs bnd u@ returns all bindings that can be derived
@@ -141,13 +141,13 @@ step rs bnd u = SM.union bnd $ SM.unions $ concat $ map bndPerTerms $ S.toList r
       | otherwise                 = SM.union (SM.fromList $ zip xs (init ts)) (minRed (last ts) p)
     bndFromRule (App _ ts) (PMRSRule _ xs Nothing  _) = SM.fromList $ zip xs ts
 
-bindingAnalysisOneRound :: SortedSymbol -> PMRS -> Binding -> Binding
+bindingAnalysisOneRound :: Symbol -> PMRS -> Binding -> Binding
 bindingAnalysisOneRound gs pmrs bnd = foldl (step rs) bnd terms
   where
     rs    = getRules pmrs
     terms = S.toList $ simpleTerms gs pmrs
 
-bindingAnalysis :: SortedSymbol -> PMRS -> Binding -> Binding
+bindingAnalysis :: Symbol -> PMRS -> Binding -> Binding
 bindingAnalysis gs pmrs bnd
   | bnd == bnd' = bnd'
   | otherwise   = bindingAnalysis gs pmrs bnd'
@@ -163,7 +163,7 @@ weakPMrules rs = MM.map f rs
     f r@(PMRSRule _ _  Nothing  _) = r
     f   (PMRSRule g xs (Just p) b) =
       -- TODO Wrong sort!
-      let pmxs = map (\x -> (x,nonterminal (headToUpper x) o)) $ S.toList $ fv p
+      let pmxs = map (\x -> (x,nonterminal (headToUpper x))) $ S.toList $ fv p
           b'   = substAll pmxs b in
       PMRSRule g xs (Just p) b'
 
@@ -187,7 +187,7 @@ headToUpper (x:xs) = toUpper x : xs
 
 -- | Generates a weak PMRS from a start symbol (0-order HORS included into the PMRS),
 -- and a PMRS.
-wPMRS :: Monad m => SortedSymbol -> PMRS -> m PMRS
+wPMRS :: Monad m => Symbol -> PMRS -> m PMRS
 wPMRS gs pmrs = mkPMRS sigma nt' rs' s
   where
     sigma  = getTerminals pmrs

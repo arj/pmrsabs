@@ -1,7 +1,7 @@
 module Term (
   Head(..), Term(..), TypeBinding,
 
-  app, var, terminal, nonterminal, symbol, ssToSymbol, headToTerm,
+  app, var, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
   fv, subst, substAll, subterms, subterms', getN, replaceVarsBy,
   replaceNt, typeCheck, caseVars, height
   ) where
@@ -18,14 +18,14 @@ import Control.Monad
 type Var = String
 
 data Head = Var Var
-          | Nt SortedSymbol
-          | T SortedSymbol
+          | Nt String
+          | T String
           deriving (Eq,Ord)
 
 instance Show Head where
   show (Var x) = x
-  show (Nt (SortedSymbol s _))  = s -- ++ ":" ++ show sort
-  show (T  (SortedSymbol s _))  = s -- ++ ":" ++ show sort
+  show (Nt s)  = s -- ++ ":" ++ show sort
+  show (T  s)  = s -- ++ ":" ++ show sort
 
 headToTerm :: Head -> Term
 headToTerm h = App h []
@@ -53,24 +53,27 @@ app (App h ts1) ts2 = App h (ts1 ++ ts2)
 var :: String -> Term
 var x = App (Var x) []
 
-nonterminal :: String -> Sort -> Term
-nonterminal s srt = App (Nt (SortedSymbol s srt)) []
+nonterminal :: String -> Term
+nonterminal s = App (Nt s) []
 
-terminal :: String -> Sort -> Term
-terminal s srt = App (T (SortedSymbol s srt)) []
+terminal :: String -> Term
+terminal s = App (T s) []
 
 ssToSymbol :: SortedSymbol -> Term
-ssToSymbol (SortedSymbol s srt) = symbol s srt
+ssToSymbol (SortedSymbol s _) = symbol s
 
-symbol :: String -> Sort -> Term
-symbol s@(c:_) srt
-  | isUpper c = nonterminal s srt
-  | isLower c = terminal s srt
+sToSymbol :: Symbol -> Term
+sToSymbol s = symbol s
 
-sortOf :: Head -> Maybe Sort
-sortOf (Var _)                 = Nothing
-sortOf (Nt (SortedSymbol _ s)) = Just s
-sortOf (T  (SortedSymbol _ s)) = Just s
+symbol :: String -> Term
+symbol s@(c:_)
+  | isUpper c = nonterminal s
+  | isLower c = terminal s
+
+--sortOf :: Head -> Maybe Sort
+--sortOf (Var _)                 = Nothing
+--sortOf (Nt (SortedSymbol _ s)) = Just s
+--sortOf (T  (SortedSymbol _ s)) = Just s
 
 subterms :: Term -> Set Term
 subterms t@(App _ ts) = S.insert t $ S.unions $ map subterms ts
@@ -84,7 +87,7 @@ subterms' t@(App h ts) = case h of
   where
     rest = S.unions $ map subterms ts
 
-getN :: Term -> Set SortedSymbol
+getN :: Term -> Set Symbol
 getN (App (Nt a) ts) = S.insert a $ S.unions $ map getN ts
 getN (App _      ts) = S.unions $ map getN ts
 
@@ -132,12 +135,12 @@ typeCheck bnd t@(App smb ts) = do
   where
     getSort (Var x) = maybe (fail ("Unknown variable " ++ show x  )) return $ M.lookup x bnd
     --getSort s = maybe (fail ("Cannot get sort of " ++ show s)) return $ --sortOf s
-    getSort s@(Nt (SortedSymbol f _) ) = maybe (fail ("Cannot get sort of " ++ show s ++ " bnd:" ++ show bnd)) return $ M.lookup f bnd
-    getSort s@(T  (SortedSymbol f _) ) = maybe (fail ("Cannot get sort of " ++ show s ++ " bnd:" ++ show bnd)) return $ M.lookup f bnd
+    getSort s@(Nt f ) = maybe (fail ("Cannot get sort of " ++ show s ++ " bnd:" ++ show bnd)) return $ M.lookup f bnd
+    getSort s@(T  f ) = maybe (fail ("Cannot get sort of " ++ show s ++ " bnd:" ++ show bnd)) return $ M.lookup f bnd
 
 -- | Replaces nonterminals, i.e. call a function for each nonterminal and
 -- providing its arguments and create a new term instead.
-replaceNt :: (SortedSymbol -> [Term] -> Term) -> Term -> Term
+replaceNt :: (Symbol -> [Term] -> Term) -> Term -> Term
 replaceNt f (App (Nt s) ts) = app (f s ts) $ map (replaceNt f) ts
 replaceNt f (App h      ts) = App h        $ map (replaceNt f) ts
 

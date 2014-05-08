@@ -31,17 +31,17 @@ example5 = (example5_1, example5_2, example5_3)
     z :: Term
     z = var "z"
     n :: Term
-    n = symbol "N" o
+    n = symbol "N"
     b :: Term
-    b = symbol "b" o
+    b = symbol "b"
     f :: Term
-    f = symbol "F" o
+    f = symbol "F"
     g :: Term
-    g = symbol "G" o
+    g = symbol "G"
     c :: Term
-    c = symbol "c" o
+    c = symbol "c"
     a :: Term
-    a = symbol "a" o
+    a = symbol "a"
 
     s1 :: Binding
     s1 = SM.fromList [("x", app y [b])
@@ -84,34 +84,36 @@ ssz      = SortedSymbol "z" o
 sss      = SortedSymbol "s" $ o ~> o
 ssNz     = SortedSymbol "Nz" $ o ~> o
 ssFilter = SortedSymbol "Filter" $ (o ~> o) ~> o ~> o
-ssS      = SortedSymbol "S" o
+sS       = "S"
+ssS      = SortedSymbol sS o
 ssN      = SortedSymbol "N" o
 ssListN  = SortedSymbol "ListN" o
 ssMap2   = SortedSymbol "Map2" $ (o ~> o) ~> (o ~> o) ~> o ~> o
 ssKZero  = SortedSymbol "KZero" $ o ~> o
 ssKOne   = SortedSymbol "KOne"  $ o ~> o
 --
-ssMain = SortedSymbol "Main" $ o ~> o
+sMain  = "Main"
+ssMain = SortedSymbol sMain $ o ~> o
 ssIf   = SortedSymbol "If" $ o ~> o ~> o ~> o
 --
-true   = ssToSymbol sstrue
-false  = ssToSymbol ssfalse
-nil    = ssToSymbol ssnil
-cons   = ssToSymbol sscons
-z      = ssToSymbol ssz
-s      = ssToSymbol sss
-nz     = ssToSymbol ssNz
+true    = ssToSymbol sstrue
+false   = ssToSymbol ssfalse
+nil     = ssToSymbol ssnil
+cons    = ssToSymbol sscons
+z       = ssToSymbol ssz
+s       = ssToSymbol sss
+nz      = ssToSymbol ssNz
 nFilter = ssToSymbol ssFilter
-main   = ssToSymbol ssMain
-sif    = ssToSymbol ssIf
-nS     = ssToSymbol ssS
-n      = ssToSymbol ssN
-listN  = ssToSymbol ssListN
-zero   = ssToSymbol sszero
-one    = ssToSymbol ssone
-kzero  = ssToSymbol ssKZero
-kone   = ssToSymbol ssKOne
-map2   = ssToSymbol ssMap2
+main    = ssToSymbol ssMain
+sif     = ssToSymbol ssIf
+nS      = ssToSymbol ssS
+n       = ssToSymbol ssN
+listN   = ssToSymbol ssListN
+zero    = ssToSymbol sszero
+one     = ssToSymbol ssone
+kzero   = ssToSymbol ssKZero
+kone    = ssToSymbol ssKOne
+map2    = ssToSymbol ssMap2
 --
 mkIf a b cond = app sif [a,b,cond]
 mkCons x xs = app cons [x,xs]
@@ -119,7 +121,7 @@ mkFilter p xs = app nFilter [p,xs]
 mkMap2 phi psi lst = app map2 [phi,psi,lst]
 
 example2pmrs :: Monad m => m PMRS
-example2pmrs = mkPMRS sigma nonterminals r ssMain
+example2pmrs = mkPMRS sigma nonterminals r sMain
   where
     sigma :: RankedAlphabet
     sigma = mkRankedAlphabet [sstrue
@@ -156,10 +158,10 @@ example2pmrs = mkPMRS sigma nonterminals r ssMain
 example2wpmrs :: Monad m => m PMRS
 example2wpmrs = do
     pmrs <- example2pmrs
-    wPMRS ssS pmrs
+    wPMRS sS pmrs
 
 example8pmrs :: Monad m => m PMRS
-example8pmrs = mkPMRS sigma nonterminals r ssMain
+example8pmrs = mkPMRS sigma nonterminals r sMain
   where
     sigma = mkRankedAlphabet [ssnil
                  ,sscons

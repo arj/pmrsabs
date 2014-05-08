@@ -76,7 +76,7 @@ filterRealPMRule rules = MM.filter pRealPMRule rules
     pRealPMRule (PMRSRule _ _  Nothing               _) = False
     pRealPMRule _                                       = True
 
-data PMRS = PMRS RankedAlphabet RankedAlphabet PMRSRules SortedSymbol
+data PMRS = PMRS RankedAlphabet RankedAlphabet PMRSRules Symbol
 
 getTerminals :: PMRS -> RankedAlphabet
 getTerminals (PMRS f _ _ _) = f
@@ -87,14 +87,14 @@ getNonterminals (PMRS _ f _ _) = f
 getRules :: PMRS -> PMRSRules
 getRules (PMRS _ _ f _) = f
 
-getStartSymbol :: PMRS -> SortedSymbol
+getStartSymbol :: PMRS -> Symbol
 getStartSymbol (PMRS _ _ _ f) = f
 
-unmakePMRS :: PMRS -> (RankedAlphabet, RankedAlphabet, PMRSRules, SortedSymbol)
+unmakePMRS :: PMRS -> (RankedAlphabet, RankedAlphabet, PMRSRules, Symbol)
 -- ^ Destructs a PMRS into terminals, nonterminals, rules and start symbol
 unmakePMRS (PMRS sigma n r s) = (sigma, n, r, s)
 
-mkPMRS :: Monad m => RankedAlphabet -> RankedAlphabet -> PMRSRules -> SortedSymbol -> m PMRS
+mkPMRS :: Monad m => RankedAlphabet -> RankedAlphabet -> PMRSRules -> Symbol -> m PMRS
 mkPMRS t nt r s = do
   let rules = concat $ MM.elems r
   forM_ rules $ \r' -> do
@@ -112,7 +112,7 @@ cleanup :: PMRS -> PMRS
 -- other alive by referencing themselves.
 cleanup (PMRS sigma n r s) = PMRS sigma n r' s
   where
-    nts = S.map ssF $ S.insert s $ S.unions $ map (getN . pmrsRuleBody) $ concat $ MM.elems r
+    nts = S.insert s $ S.unions $ map (getN . pmrsRuleBody) $ concat $ MM.elems r
     r'  = MM.filter (\(PMRSRule f _ _ _) -> S.member f nts) r
 
 instance Show PMRS where
@@ -125,7 +125,7 @@ prettyPrintPMRS :: PMRS -> Writer String ()
 prettyPrintPMRS (PMRS _ _ r s) = do
   tell "%BEGING"
   tell "\n"
-  prettyPrintRules (ssF s) r
+  prettyPrintRules s r
   tell "%ENDG"
   tell "\n"
 
@@ -154,7 +154,7 @@ step pmrs t = replaceNt (stepSingle pmrs) t
 -- If the symbol requires pattern matching to be reduced
 -- and it is not yet clear which case is applicable, nothing
 -- happens.
-stepSingle :: PMRS -> SortedSymbol -> [Term] -> Term
-stepSingle pmrs nt@(SortedSymbol s srt) args = undefined
+stepSingle :: PMRS -> Symbol -> [Term] -> Term
+stepSingle pmrs nt args = undefined
   where
     rules = matchingRules (getRules pmrs) $ App (Nt nt) args
