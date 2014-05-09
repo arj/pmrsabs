@@ -5,9 +5,9 @@ module Term (
 
   app, var, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
   fv, subst, substAll, subterms, subterms', getN, replaceVarsBy,
-  replaceNt, replaceNtMany, typeCheck, caseVars, height,
+  typeCheck, caseVars, height,
 
-  isMatching, isMatchingErr, runM, runIsMatching
+  isMatching, isMatchingErr, runM, runIsMatching, pNtHead
   ) where
 
 import Aux
@@ -19,6 +19,8 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Control.Monad
 import Control.Monad.Error
+
+import Debug.Trace (trace)
 
 type Var = String
 
@@ -92,6 +94,10 @@ subterms' t@(App h ts) = case h of
   where
     rest = S.unions $ map subterms ts
 
+pNtHead :: Term -> Bool
+pNtHead (App (Nt _) _) = True
+pNtHead _              = False
+
 getN :: Term -> Set Symbol
 getN (App (Nt a) ts) = S.insert a $ S.unions $ map getN ts
 getN (App _      ts) = S.unions $ map getN ts
@@ -143,17 +149,6 @@ typeCheck bnd t@(App smb ts) = do
     getSort s@(Nt f ) = maybe (fail ("Cannot get sort of " ++ show s ++ " bnd:" ++ show bnd)) return $ M.lookup f bnd
     getSort s@(T  f ) = maybe (fail ("Cannot get sort of " ++ show s ++ " bnd:" ++ show bnd)) return $ M.lookup f bnd
 
--- | Replaces nonterminals, i.e. call a function for each nonterminal and
--- providing its arguments and create a new term instead.
-replaceNt :: (Symbol -> [Term] -> Term) -> Term -> Term
-replaceNt f term = head $ replaceNtMany (\s t -> [f s t]) term
-
--- | Replaces nonterminals, i.e. call a function for each nonterminal and
--- providing its arguments and create a new term instead.
-replaceNtMany :: (Symbol -> [Term] -> [Term]) -> Term -> [Term]
-replaceNtMany f (App (Nt s) ts) = [ app h res | h <- (f s ts), res <- map (replaceNtMany f) ts]
-replaceNtMany f (App h      ts) = [ App h res | res <- map (replaceNtMany f) ts]
-
 caseVars :: Term -> Set String
 -- ^ Returns all variables that are used in a case expression.
 caseVars (App _ ts ) = S.unions $ map caseVars ts
@@ -170,14 +165,15 @@ height (D _      ) = 1
 -- The pattern may only consist of variables and terminal
 -- symbols. The term may only consist of terminal symbols.
 isMatching :: Term -> Term -> Maybe [(String,Term)]
-isMatching (App (Var x) [] ) t@(App (T _ ) _  ) = return [(x,t)]
-isMatching (App (T f1 ) ts1)   (App (T f2) ts2) =
+isMatching (App (Var x) [] ) t                = return [(x,t)]
+isMatching (App (T f1 ) ts1) (App (T f2) ts2) =
   if f1 /= f2
     then Nothing
     else do
       bnd <- mapM (uncurry isMatching) (zip ts1 ts2)
       return $ concat bnd
-isMatching p _ = error (show p ++ " is no valid pattern") -- TODO Use ErrorT instead of Error!
+isMatching (App (T   _) _ ) (App (Nt _) _)  = Nothing
+isMatching p t = error (show p ++ "/" ++ show t ++ " is no valid pattern") -- TODO Use ErrorT instead of Error!
 
 ---------------------------------------------------------
 ---------------------------------------------------------
@@ -199,8 +195,8 @@ newtype Matcher a = M {
 -- The pattern may only consist of variables and terminal
 -- symbols. The term may only consist of terminal symbols.
 isMatchingErr :: Term -> Term -> Matcher [(String,Term)]
-isMatchingErr (App (Var x) [] ) t@(App (T _ ) _  ) = return [(x,t)]
-isMatchingErr (App (T f1 ) ts1)   (App (T f2) ts2) =
+isMatchingErr (App (Var x) [] ) t@(App (T _) _)  = return [(x,t)]
+isMatchingErr (App (T f1 ) ts1) (App (T f2) ts2) =
   if f1 /= f2
     then M (lift Nothing)
     else do

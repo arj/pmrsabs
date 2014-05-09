@@ -4,7 +4,8 @@ where
 import Aux
 import Sorts
 import Term
-import PMRS
+import PMRS (PMRS, getRules, PMRSRule(..), PMRSRules, unmakePMRS, filterRealPMRule)
+import qualified PMRS as P
 import CommonRS
 
 import Data.List

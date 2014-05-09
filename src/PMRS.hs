@@ -1,20 +1,22 @@
 {-# LANGUAGE TypeSynonymInstances,FlexibleInstances #-}
-module PMRS (
-  PMRSRule(..), PMRS,
-  PMRSRules,
+module PMRS
+--(
+--  PMRSRule(..), PMRS,
+--  PMRSRules,
 
-  mkPMRS, getTerminals, getNonterminals, getRules, getStartSymbol,
-  unmakePMRS,
+--  mkPMRS, getTerminals, getNonterminals, getRules, getStartSymbol,
+--  unmakePMRS,
 
-  listToRules, matchingRules, filterRealPMRule,
-  prettyPrintPMRS,
-  cleanup,
+--  listToRules, filterRealPMRule,
+--  prettyPrintPMRS,
+--  cleanup,
 
-  getPMVariables,
+--  getPMVariables,
 
-  step, stepSingle,
-  reduce
-  ) where
+--  step, nSteps, stepSingle,
+--  reduce
+--  )
+where
 
 import Aux
 import Term
@@ -34,6 +36,10 @@ import qualified Data.Map as M
 import Data.Maybe
 import Control.Monad
 import Control.Monad.Writer
+
+import Control.Exception (assert)
+
+import Debug.Trace (trace)
 
 data PMRSRule = PMRSRule { pmrsRuleF :: Symbol
   , pmrsRuleVars :: [String]
@@ -67,6 +73,10 @@ listToRules :: [PMRSRule] -> PMRSRules
 listToRules lst = MM.fromList $ map fPairUp lst
   where
     fPairUp r@(PMRSRule f _ _ _) = (f,r)
+
+argCount :: PMRSRule -> Int
+argCount (PMRSRule _ xs Nothing _)  = length xs
+argCount (PMRSRule _ xs (Just _) _) = 1 + length xs
 
 -- | Filters the rules that are really pattern matching.
 -- A rule with Just x is not really pattern matching.
@@ -146,27 +156,52 @@ prettyPrintRules s r = do
 instance PrettyPrint PMRS where
   prettyPrint pmrs = execWriter $ prettyPrintPMRS pmrs
 
--- | One reduction step of a given term using the rules from a PMRS.
--- A step means a substitution is applied on every nonterminal present in t.
-step :: PMRS -> Term -> [Term]
-step pmrs t = replaceNtMany (stepSingle pmrs) t
+--------------------------
 
--- | Given a nonterminal with arguments reduces one step.
--- If the symbol requires pattern matching to be reduced
--- and it is not yet clear which case is applicable, nothing
--- happens.
-stepSingle :: PMRS -> Symbol -> [Term] -> [Term]
-stepSingle pmrs nt args = results
-  where
-    results = filterMap (\r -> reduce r args) rules
-    rules   = matchingRules (getRules pmrs) $ App (Nt nt) args
+type Application = (Symbol,[Term])
 
-reduce :: PMRSRule -> [Term] -> Maybe Term
-reduce (PMRSRule _ xs Nothing  t) args = return $ substAll (zip xs args) t
-reduce (PMRSRule _ xs (Just p) t) args =
-  case isMatching p parg of
-    Nothing   -> Nothing
-    Just sbst -> return $ substAll ((zip xs narg) ++ sbst) t
+steps :: Int -> PMRS -> Term -> Set Term
+steps 0 _    t = S.singleton t
+steps n pmrs t = S.unions $ map (steps (n-1) pmrs) res
   where
-    narg = init args
-    parg = last args
+    res = S.toList $ step pmrs t
+
+step :: PMRS -> Term -> Set Term
+step pmrs (App (Nt f) ts) =
+  if not $ S.null reductions
+    then reductions
+    else S.fromList $ map (App (Nt f)) ts'
+  where
+    reductions   = reduce pmrs (f,ts)
+    reductionsTs = map (S.toList . step pmrs) ts
+    ts'          = sequence reductionsTs
+step pmrs (App h ts) = S.fromList $ map (App h) ts'
+  where
+    reductionsTs = map (S.toList . step pmrs) ts
+    ts'          = sequence reductionsTs
+
+-- | Given a set of rules and a term of the form (F t1 ... tn)
+-- the function returns the set of terms that it can be reduced to.
+-- The set might be empty!
+reduce :: PMRS -> Application -> Set Term
+reduce pmrs (f,ts) = S.fromList result
+  where
+    result    = filterMap (applyRule ts) rules
+    -- Fetch all the matching rules for f
+    rules     = filter pArgNum $ (getRules pmrs) MM.! f
+    -- Check if #arguments match #requiredArgs
+    pArgNum r = length ts == argCount r
+
+applyRule :: [Term] -> PMRSRule -> Maybe Term
+applyRule ts (PMRSRule _ xs Nothing  t) =
+  assert (length ts == length xs) $
+  return $ substAll (zip xs ts) t
+applyRule ts (PMRSRule _ xs (Just p) t) =
+  assert (length ts == 1 + length xs) $
+  case isMatching p tsLast of
+    Nothing -> Nothing -- Not matching
+    Just s  -> return $ substAll (s ++ (zip xs tsInit)) t
+  where
+    -- Crashes on empty list!
+    tsInit = init ts
+    tsLast = last ts

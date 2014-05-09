@@ -120,6 +120,8 @@ mkCons x xs = app cons [x,xs]
 mkFilter p xs = app nFilter [p,xs]
 mkMap2 phi psi lst = app map2 [phi,psi,lst]
 
+mains = app main [nS]
+
 example2pmrs :: Monad m => m PMRS
 example2pmrs = mkPMRS sigma nonterminals r sMain
   where

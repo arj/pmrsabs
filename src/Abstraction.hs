@@ -14,6 +14,7 @@ import Prelude hiding (pi)
 import PMRS hiding (step)
 import Term
 import Sorts
+import CommonRS
 
 import Control.Arrow (first)
 
@@ -131,7 +132,7 @@ step rs bnd u = SM.union bnd $ SM.unions $ concat $ map bndPerTerms $ S.toList r
   where
     terms        = substHead bnd u
     -- Set (Term a1, [Rule a1])
-    rulesPerTerm = S.map (\t -> (t,matchingRules rs t)) terms
+    rulesPerTerm = S.map (\t -> (t,matchingRulesByTerm rs t)) terms
     bndPerTerms (term,trules) = map (bndFromRule term) trules
     --
     minRed s p   = rmatch rs s p (fromBinding bnd)

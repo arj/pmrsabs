@@ -25,5 +25,5 @@ allTheSame xs = and $ map (== head xs) (tail xs)
 filterMap :: (a -> Maybe b) -> [a] -> [b]
 filterMap _ []     = []
 filterMap f (x:xs) = case f x of
-	                   Just x' -> x' : filterMap f xs
-	                   Nothing -> filterMap f xs
+	  Just x' -> x' : filterMap f xs
+	  Nothing -> filterMap f xs
