@@ -67,6 +67,7 @@ example5 = (example5_1, example5_2, example5_3)
 m    = var "m"
 a    = var "a"
 b    = var "b"
+c    = var "c"
 x    = var "x"
 xs   = var "xs"
 varn = var "n"
@@ -146,7 +147,7 @@ example2pmrs = mkPMRS sigma nonterminals r sMain
                    ,PMRSRule "If" ["a","b"] (Just true) $ a
                    ,PMRSRule "If" ["a","b"] (Just false) $ b
                    ,PMRSRule "Nz" [] (Just z) $ false
-                   ,PMRSRule "Nz" [] (Just $ app s [varn]) $ true
+                   ,PMRSRule "Nz" [] (Just $ app s [c]) $ true
                    ,PMRSRule "Filter" ["p"] (Just nil) $ nil
                    ,PMRSRule "Filter" ["p"] (Just $ app cons [x,xs]) $
                         mkIf (mkCons x $ mkFilter p xs) (mkFilter p xs) (app p [x])

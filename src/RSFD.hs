@@ -4,7 +4,7 @@ where
 import Aux
 import Sorts
 import Term
-import PMRS (PMRS, getRules, PMRSRule(..), PMRSRules, unmakePMRS, filterRealPMRule)
+import PMRS (PMRS, getRules, PMRSRule(..), PMRSRules, unmakePMRS, filterRealPMRule, pIsPMRule, pIsPseudo)
 import qualified PMRS as P
 import CommonRS
 
@@ -132,15 +132,6 @@ errStr = "err"
 
 errSymbol :: Term
 errSymbol = terminal errStr
-
--- | Checks if the PMRS rule is a pm rule, including pseudo pm.
-pIsPMRule :: PMRSRule -> Bool
-pIsPMRule (PMRSRule _ _ p _) = isJust p
-
--- | Checks if the PMRS rule is a pseudo rule, i.e. the pattern is a variable.
-pIsPseudo :: PMRSRule -> Bool
-pIsPseudo (PMRSRule _ _ (Just (App (Var _) _)) _) = True
-pIsPseudo (PMRSRule _ _ (Just _              ) _) = False
 
 -- | Transforms a given PMRS rule into an RSFD rule if it is a non-pm
 -- rule or a pseudo pm rule, i.e. the pattern is a variable, see pIsPMRule.

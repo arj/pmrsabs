@@ -31,13 +31,16 @@ executable pmrsabs
                        Sorts,
                        Examples,
                        RSFD,
-                       Aux
+                       Aux,
+                       Preface
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        containers >=0.5 && <0.6,
                        multimap >= 1.3,
                        mtl,
                        MissingH,
-                       parsec
+                       parsec,
+                       process,
+                       temporary
   hs-source-dirs:      src
   default-language:    Haskell2010

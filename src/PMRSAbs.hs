@@ -3,7 +3,8 @@ import           Examples hiding (main)
 import           PMRS
 import           Sorts
 import           Term
-import           PMRSParser
+--import           PMRSParser
+import Preface
 
 --import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM

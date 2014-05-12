@@ -12,6 +12,8 @@ module PMRS
 --  cleanup,
 
 --  getPMVariables,
+--  pIsPseudo,
+--  pIsPMRule,
 
 --  step, nSteps, stepSingle,
 --  reduce
@@ -34,6 +36,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 
 import Data.Maybe
+import Control.Arrow
 import Control.Monad
 import Control.Monad.Writer
 
@@ -86,6 +89,23 @@ filterRealPMRule rules = MM.filter pRealPMRule rules
     pRealPMRule (PMRSRule _ _ (Just (App (Var _) _)) _) = False
     pRealPMRule (PMRSRule _ _  Nothing               _) = False
     pRealPMRule _                                       = True
+
+-- | Checks if the nonterminal is a pattern
+-- matching nonterminal in its last argument.
+pIsPMSymbol :: PMRS -> Symbol -> Bool
+pIsPMSymbol pmrs f = pIsPMRule rule
+  where
+    rule = head $ (getRules pmrs) MM.! f
+
+
+-- | Checks if the PMRS rule is a pm rule, including pseudo pm.
+pIsPMRule :: PMRSRule -> Bool
+pIsPMRule (PMRSRule _ _ p _) = isJust p
+
+-- | Checks if the PMRS rule is a pseudo rule, i.e. the pattern is a variable.
+pIsPseudo :: PMRSRule -> Bool
+pIsPseudo (PMRSRule _ _ (Just (App (Var _) _)) _) = True
+pIsPseudo (PMRSRule _ _ (Just _              ) _) = False
 
 data PMRS = PMRS RankedAlphabet RankedAlphabet PMRSRules Symbol
 
@@ -160,6 +180,25 @@ instance PrettyPrint PMRS where
 
 type Application = (Symbol,[Term])
 
+stepRem :: PMRS -> Term -> Set Term -> (Set Term, Set Term)
+stepRem pmrs t known =
+  if t `S.member` known
+    then (S.singleton t, known)
+    else (step pmrs t, S.insert t known)
+
+stepsRem' :: Int -> PMRS -> Term -> Set Term -> (Set Term, Set Term)
+stepsRem' 0 _    t known = (S.singleton t, known)
+stepsRem' n pmrs t known = (S.unions ts, S.unions knowns)
+  where
+    (res,known') = first S.toList $ stepRem pmrs t known
+    (ts,knowns ) = unzip $ map (\term -> stepsRem' (n-1) pmrs term known') res
+
+-- | Version of step that remembers terms that
+-- have already been looked at (toplevel only!)
+-- and does not reduce them again.
+steps' :: Int -> PMRS -> Term -> Set Term
+steps' n pmrs t = fst $ stepsRem' n pmrs t S.empty
+
 steps :: Int -> PMRS -> Term -> Set Term
 steps 0 _    t = S.singleton t
 steps n pmrs t = S.unions $ map (steps (n-1) pmrs) res
@@ -170,8 +209,11 @@ step :: PMRS -> Term -> Set Term
 step pmrs (App (Nt f) ts) =
   if not $ S.null reductions
     then reductions
-    else S.fromList $ map (App (Nt f)) ts'
+    else if pIsPMSymbol pmrs f && not (null ts)
+      then S.map reduceLast $ step pmrs (last ts)
+      else S.fromList $ map (App (Nt f)) ts'
   where
+    reduceLast t = App (Nt f) $ init ts ++ [t]
     reductions   = reduce pmrs (f,ts)
     reductionsTs = map (S.toList . step pmrs) ts
     ts'          = sequence reductionsTs
@@ -179,6 +221,9 @@ step pmrs (App h ts) = S.fromList $ map (App h) ts'
   where
     reductionsTs = map (S.toList . step pmrs) ts
     ts'          = sequence reductionsTs
+
+filterTerminalTrees :: Set Term -> Set Term
+filterTerminalTrees ts = S.map ntCut ts
 
 -- | Given a set of rules and a term of the form (F t1 ... tn)
 -- the function returns the set of terms that it can be reduced to.

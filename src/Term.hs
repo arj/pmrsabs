@@ -7,7 +7,8 @@ module Term (
   fv, subst, substAll, subterms, subterms', getN, replaceVarsBy,
   typeCheck, caseVars, height,
 
-  isMatching, isMatchingErr, runM, runIsMatching, pNtHead
+  isMatching, isMatchingErr, runM, runIsMatching, pNtHead,
+  ntCut
   ) where
 
 import Aux
@@ -209,3 +210,9 @@ runIsMatching m = case runErrorT (runM m) of
                     (Just (Left  r)) -> Left  r
                     (Just (Right r)) -> Right (Just r)
                     (Nothing)        -> Right Nothing
+
+ntCut :: Term -> Term
+ntCut (App (Nt _) _ ) = terminal "_|_"
+ntCut (App h      ts) = App h $ map ntCut ts
+ntCut (D d)           = D d
+ntCut (Case x ts)     = Case x $ map ntCut ts
