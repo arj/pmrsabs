@@ -5,7 +5,7 @@ module Sorts (
   ar,
   sortToList, sortFromList,
   mkRankedAlphabet, rankedAlphabetToSet,
-  replaceLastArg
+  replaceLastArg,
   ) where
 
 import Data.Set (Set)
@@ -13,6 +13,8 @@ import qualified Data.Set as S
 
 import Data.Map (Map)
 import qualified Data.Map as M
+
+import Debug.Trace (trace)
 
 type Symbol = String
 
@@ -60,14 +62,16 @@ infixr 5 ~>
 
 ar :: Sort -> Int
 ar Base = 0
+ar Data = 0
 ar (Arrow _ s) = 1 + ar s
 
 sortToList :: Sort -> [Sort]
 sortToList Base = [Base]
+sortToList Data = [Data]
 sortToList (Arrow s s2) = s : sortToList s2
 
 sortFromList :: [Sort] -> Sort
-sortFromList = foldl Arrow Base
+sortFromList = foldr1 Arrow
 
 replaceLastArg :: Sort -> Sort -> Sort
 replaceLastArg _ Data           = Data

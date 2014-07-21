@@ -49,12 +49,26 @@ mkRSFDRules lst = MM.fromList $ map fPairUp lst
   where
     fPairUp r = (rsfdRuleHead r,r)
 
+-- | Extract types of the variables for a rule.
+-- Be careful with eta abstraction!
 typeOfVariables :: RSFDRule -> RankedAlphabet -> TypeBinding
-typeOfVariables (RSFDRule f xs _) ra = M.fromList xstypes
+typeOfVariables (RSFDRule _ [] _) _  = M.empty
+typeOfVariables r@(RSFDRule f xs _) ra = 
+  if length types == length xs + 1
+    then M.fromList $ zip xs types -- omitting return type!
+    else M.fromList $ (lastx,lasttp) : inittp
   where
-    srt     = ra M.! f
-    types   = init $ sortToList srt
-    xstypes = zip xs types
+    srt    = ra M.! f
+    types  = sortToList srt
+    --
+    initxs = init xs
+    lastx  = last xs
+    inittp = zip initxs types
+    resttp = drop (length initxs) types
+    lasttp = if null resttp
+             then trace (show r) Base
+             else foldr1 (~>) resttp
+
 
 mkRSFD :: Monad m => RankedAlphabet -> RankedAlphabet -> Data -> RSFDRules -> Symbol -> m RSFD
 mkRSFD sigma n d r s = do

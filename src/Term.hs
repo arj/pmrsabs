@@ -1,18 +1,20 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Term (
-  Head(..), Term(..), TypeBinding,
+  Head(..), Term(..), TypeBinding, Var,
 
-  app, var, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
-  fv, subst, substAll, subterms, subterms', getN, replaceVarsBy,
-  typeCheck, caseVars, height,
+  app, var, mkCase, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
+  fv, fv', subst, substAll, subterms, subterms', getN, replaceVarsBy,
+  typeCheck, caseVars, height, isTerminalHead, isNTHead, prefixTerms,
+  isUsingCase,
+  isUsingD,
+  isNotContainingN,
 
   isMatching, isMatchingErr, runM, runIsMatching, pNtHead,
   ntCut
   ) where
 
-import Aux
-import Sorts
+import Data.List
 import Data.Set (Set)
 import Data.Char (isUpper, isLower)
 import qualified Data.Set as S
@@ -22,6 +24,9 @@ import Control.Monad
 import Control.Monad.Error
 
 import Debug.Trace (trace)
+
+import Aux
+import Sorts
 
 type Var = String
 
@@ -55,11 +60,17 @@ fv (App _ ts)       = S.unions $ map fv ts
 fv (Case _ ts)      = S.unions $ map fv ts
 fv (D _)            = S.empty
 
+fv' :: Term -> [Var]
+fv' = S.toList . fv
+
 app :: Term -> [Term] -> Term
 app (App h ts1) ts2 = App h (ts1 ++ ts2)
 
 var :: String -> Term
 var x = App (Var x) []
+
+mkCase :: String -> [Term] -> Term
+mkCase s ts = Case s ts
 
 nonterminal :: String -> Term
 nonterminal s = App (Nt s) []
@@ -95,6 +106,11 @@ subterms' t@(App h ts) = case h of
   where
     rest = S.unions $ map subterms ts
 
+prefixTerms :: String -> Term -> Set Term
+prefixTerms v (App h ts) = S.insert (App h ts') $ S.unions $ map (prefixTerms v) ts
+  where
+    ts' = replicate (length ts) $ var v
+
 pNtHead :: Term -> Bool
 pNtHead (App (Nt _) _) = True
 pNtHead _              = False
@@ -102,6 +118,14 @@ pNtHead _              = False
 getN :: Term -> Set Symbol
 getN (App (Nt a) ts) = S.insert a $ S.unions $ map getN ts
 getN (App _      ts) = S.unions $ map getN ts
+
+isTerminalHead :: Term -> Bool
+isTerminalHead (App (T _) _) = True
+isTerminalHead _             = False
+
+isNTHead :: Term -> Bool
+isNTHead (App (Nt _) _) = True
+isNTHead _             = False
 
 subst :: Var -> Term -> Term -> Term
 subst x v (App h@(Var y) ts)
@@ -116,6 +140,25 @@ replaceVarsBy :: String -> Term -> Term
 -- ^ replaceVarsBy "_" t replaces all variables with "_".
 replaceVarsBy x (App (Var _) ts) = App (Var x) $ map (replaceVarsBy x) ts
 replaceVarsBy x (App t       ts) = App t       $ map (replaceVarsBy x) ts
+
+-- | Checks whether the term contains a case expression.
+isUsingCase :: Term -> Bool
+isUsingCase (App _ ts) = any isUsingCase ts
+isUsingCase (Case _ _) = True
+isUsingCase (D _) = False
+
+-- | Checks whether the term contains a D expression.
+isUsingD :: Term -> Bool
+isUsingD (App _ ts) = any isUsingD ts
+isUsingD (Case _ ts) = any isUsingD ts
+isUsingD (D _) = True
+
+-- | Checks whether the given term does not contain nonterminal symbols.
+isNotContainingN :: Term -> Bool
+isNotContainingN t = S.null $ getN t
+
+---------------------------------------------------------
+
 
 type TypeBinding = Map String Sort
 
@@ -132,32 +175,35 @@ typeCheck bnd t@(App smb ts) = do
   srt <- getSort smb
   if length ts > ar srt then
     fail ("Symbol " ++ show smb ++ " has arity " ++ show (ar srt) ++
-      " but is applied to " ++ show (length ts) ++ " arguments")
-  else do
-    typesTs <- mapM (typeCheck bnd) ts
-    let expTypes = sortToList srt
-    forM_ (zip expTypes typesTs) $ \(t1,t2) -> do
-      if t1 == t2
-        then return ()
-        else fail ("A subterm of " ++ show t ++ " should have type " ++ show t1 ++ " but has type " ++ show t2 ++
-          "\nType environment: " ++ show bnd ++
-          "\nExp types: " ++ show expTypes ++
-          "\nInf types: " ++ show typesTs)
-    return $ sortFromList $ drop (1 + length ts) expTypes
+      " but is applied to " ++ show (length ts) ++ " arguments.\nEnvironment: " ++ show bnd)
+  else
+    if null ts
+      then return srt
+      else do
+        typesTs <- mapM (typeCheck bnd) ts
+        let inferedArgType = sortFromList typesTs
+        let expArgType = sortFromList $ take (length ts) $ sortToList srt
+        let retType = sortFromList $ drop (length ts) $ sortToList srt 
+        if inferedArgType == expArgType
+            then return retType
+            else fail ("Type error!\nTerm: " ++ show t ++ "\nExpected argument type: " ++
+                       show expArgType ++ "\nInferred argument type: " ++ show inferedArgType ++
+                       "\nTypes involved:\n" ++ (intercalate "\n" $ zipWith (\ a b -> "\t" ++ show a ++ ": " ++ show b) ts typesTs) ++
+                       "\n\t" ++ show smb ++ ": " ++ show srt ++
+                       "\nType environment: " ++ show bnd)
   where
     getSort (Var x) = maybe (fail ("Unknown variable " ++ show x  )) return $ M.lookup x bnd
-    --getSort s = maybe (fail ("Cannot get sort of " ++ show s)) return $ --sortOf s
     getSort s@(Nt f ) = maybe (fail ("Cannot get sort of " ++ show s ++ " bnd:" ++ show bnd)) return $ M.lookup f bnd
     getSort s@(T  f ) = maybe (fail ("Cannot get sort of " ++ show s ++ " bnd:" ++ show bnd)) return $ M.lookup f bnd
 
+-- | Returns all variables that are used in a case expression.
 caseVars :: Term -> Set String
--- ^ Returns all variables that are used in a case expression.
 caseVars (App _ ts ) = S.unions $ map caseVars ts
 caseVars (D _      ) = S.empty
 caseVars (Case x ts) = S.insert x $ S.unions $ map caseVars ts
 
+-- | /O(n)/ Returns the height of a term.
 height :: Term -> Int
--- ^ /O(n)/ Returns the height of a term.
 height (App _ ts ) = succ $ maximum $ 0 : map height ts
 height (Case _ ts) = succ $ maximum $ 0 : map height ts
 height (D _      ) = 1
@@ -216,3 +262,14 @@ ntCut (App (Nt _) _ ) = terminal "_|_"
 ntCut (App h      ts) = App h $ map ntCut ts
 ntCut (D d)           = D d
 ntCut (Case x ts)     = Case x $ map ntCut ts
+
+-- |Creates the set of all terms createable from
+-- the given ranked alphabet of height of at most n.
+-- The underscore is used as variable.
+sigmaN :: Var -> RankedAlphabet -> Int -> Set Term
+sigmaN x _  0 = S.singleton $ var x
+sigmaN x ra n =
+  let terms = sigmaN x ra (n-1) in
+  -- TODO create terms from ra's symbols by
+  -- adding every combination of children from terms.
+  undefined

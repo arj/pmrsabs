@@ -1,0 +1,35 @@
+Given the following WPMRS:
+%BEGING
+Main m              = Filter Nz M.
+If a b true         = a.
+If a b false        = b.
+Nz z                = false.
+Nz (s _)            = true.
+Filter p nil        = nil.
+Filter p (cons _ _) = If (cons X (Filter p XS)) (Filter p XS) (p X).
+//--
+S                   = ListN.
+ListN               = nil | cons N ListN.
+N                   = z | s N.
+//--
+M                   = S.
+X                   = N.
+XS                  = ListN.
+%ENDG
+
+We create an equivalent RSFD with the following data
+domain $D=\{true -> 0, false -> 1, z -> 2, s -> 3, nil -> 4, cons -> 5\}$
+and extend the terminal symbols with a symbol err symbolizing an error.
+
+%BEGING
+Main m      = Filter Nz M'.
+If a b pt   = _case pt 6 a b err err err err.
+Nz     pt   = _case pt 6 err err false true err err.
+Filter p pt = _case pt 6 err err err err nil (If (cons X' (Filter p XS')) (Filter p XS') (p X')).
+//--
+M'          = 4 | 5.
+X'          = 2 | 3.
+XS'         = 4 | 5.
+%ENDG
+
+where the primed nonterminal symbols are of type d and not of type o.

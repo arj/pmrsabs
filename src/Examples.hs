@@ -75,6 +75,7 @@ p    = var "p"
 phi  = var "phi"
 psi  = var "psi"
 --
+ssfoo    = SortedSymbol "foo" o
 sszero   = SortedSymbol "zero" o
 ssone    = SortedSymbol "one" o
 sstrue   = SortedSymbol "true" o
@@ -97,6 +98,7 @@ sMain  = "Main"
 ssMain = SortedSymbol sMain $ o ~> o
 ssIf   = SortedSymbol "If" $ o ~> o ~> o ~> o
 --
+foo     = ssToSymbol ssfoo
 true    = ssToSymbol sstrue
 false   = ssToSymbol ssfalse
 nil     = ssToSymbol ssnil
@@ -149,7 +151,7 @@ example2pmrs = mkPMRS sigma nonterminals r sMain
                    ,PMRSRule "Nz" [] (Just z) $ false
                    ,PMRSRule "Nz" [] (Just $ app s [c]) $ true
                    ,PMRSRule "Filter" ["p"] (Just nil) $ nil
-                   ,PMRSRule "Filter" ["p"] (Just $ app cons [x,xs]) $
+                   ,PMRSRule "Filter" ["p"] (Just $ app cons [x,app cons [foo,xs]]) $
                         mkIf (mkCons x $ mkFilter p xs) (mkFilter p xs) (app p [x])
                    ,PMRSRule "S" [] Nothing $ listN
                    ,PMRSRule "N"  [] Nothing $ z

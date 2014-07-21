@@ -32,7 +32,9 @@ executable pmrsabs
                        Examples,
                        RSFD,
                        Aux,
-                       Preface
+                       Preface,
+                       Analyses,
+                       GenericRecursionScheme
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        containers >=0.5 && <0.6,
