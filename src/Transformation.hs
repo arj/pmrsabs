@@ -54,7 +54,7 @@ createCases wrapper dm intRes ctxtRes = [wrapper (dmErr dm)] ++ intcases ++ term
 
 
 wPMRStoRSFD :: Monad m => PMRS -> m RSFD
-wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "$S"
+wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
     where
       pair = RSFDRule "HPair" ["x","y","f"] (app (var "f") [var "x", var "y"])
       k1   = RSFDRule "HK1" ["n","c","x1","x2"] (var "x1")

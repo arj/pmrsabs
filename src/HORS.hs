@@ -29,4 +29,5 @@ mkHORS t nt rs s = do
     if srt == o
       then return ()
       else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)
+  when (not $ MM.member rs s) $ fail ("No rule for the start symbol: " ++ show s)
   return $ HORS t nt rs s
