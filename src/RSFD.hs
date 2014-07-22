@@ -31,7 +31,7 @@ data RSFDRule = RSFDRule { rsfdRuleHead :: Symbol
 } deriving (Eq, Ord)
 
 instance Show RSFDRule where
-  show (RSFDRule f xs body) = unwords $ filter (not . null) [show f, unwords xs, "=>",show body]
+  show (RSFDRule f xs body) = unwords $ filter (not . null) [f, unwords xs, "=>",show body]
 
 type RSFDRules = Rules RSFDRule
 
@@ -78,7 +78,7 @@ mkRSFD sigma n d r s = do
     srt <- typeCheck bnd $ rsfdBody r'
     if srt == o
       then return ()
-      else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)
+      else fail ("The body of the rule " ++ show r' ++ " is not of sort o but of sort " ++ show srt)
   return $ RSFD sigma n d r s
 
 instance Show RSFD where
@@ -96,7 +96,7 @@ prettyPrintRSFD (RSFD _ _ _ r s) = do
   tell "\n"
 
 prettyPrintRule :: RSFDRule => Writer String ()
-prettyPrintRule (RSFDRule f xs body) = tell $ unwords $ filter (not . null) [show f, unwords xs, "=",show body]
+prettyPrintRule (RSFDRule f xs body) = tell $ unwords $ filter (not . null) [f, unwords xs, "=",show body]
 
 prettyPrintRules :: Symbol -> RSFDRules -> Writer String ()
 prettyPrintRules s r = do
