@@ -128,9 +128,6 @@ mkPi2 p n c = app (nonterminal "HPi2") [p,n,c]
 mkD :: Term -> Term
 mkD d = app (nonterminal "HD") [d]
 
-dk :: Term
-dk = D 0 -- Fix that!
-
 createNTforT :: (Symbol, Sort) -> RankedAlphabet
 createNTforT (k,Base) = M.singleton (tk k) tpair
 createNTforT (k,srt)  = ra
@@ -154,8 +151,8 @@ tk :: String -> String
 tk k = "HT_" ++ k
 
 createRulesForT :: DataMap -> (Symbol, Sort) -> [RSFDRule]
-createRulesForT _     (k,Base) = return $ RSFDRule (tk k) ["f"] (mkPair (sToSymbol k) (mkD dk) (var "f"))
-createRulesForT dm (k,srt) = rules
+createRulesForT dm (k,Base) = return $ RSFDRule (tk k) ["f"] (mkPair (sToSymbol k) (dmCtxt dm (terminal k)) (var "f"))
+createRulesForT dm (k,srt)  = rules
   where
     rules = [tk0,tk1] ++ tki ++ tkn ++ [tkcase]
     n     = ar srt
