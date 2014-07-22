@@ -5,6 +5,8 @@ import PMRS
 import Term
 import Sorts 
 
+import Data.List
+
 import Data.Map (Map)
 import qualified Data.Map as M
 
@@ -82,14 +84,15 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
                       ,("HD", Data ~> tsetter)
                       ,("HTerr", tpair)
                       ,("HS", o)
-                      ,("S", tpair) -- Remove
                       ]
       tk_nt = M.unions $ map createNTforT $ M.toList $ getTerminals pmrs
       tk_rules = concat $ map (createRulesForT dm) $ M.toList $ getTerminals pmrs
       --
-      nt = tk_nt `M.union` fix_nt
+      nt   = tk_nt `M.union` fix_nt `M.union` f_nt
+      f_nt = M.map homoemorphicExtensionToPair $ getNonterminals pmrs
       --
-      rules = mkRSFDRules $ [pair, k1, k2, pi1, pi2, pi2i, cerr, lift, d, terr, s] ++ tk_rules
+      rules = mkRSFDRules $ [pair, k1, k2, pi1, pi2, pi2i, cerr, lift, d, terr, s]
+                            ++ tk_rules ++ f_nonpm ++ f_pm
       --
       maxheight = 5
       -- The mapping is:
@@ -97,7 +100,7 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
       -- numbers up to n -> D 1 --> D n
       -- contexts -> D n+1 ... D ||p||+n+1
       dctxt :: Term -> Term
-      dctxt t = D 6
+      dctxt t = D 6 -- TODO Fix
       --
       dnumber :: Int -> Term
       dnumber n = D n
@@ -106,6 +109,19 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
       derr = D 0
       --
       dm = DataMap derr dnumber dctxt 5 [terminal "herr"] -- TODO Fix number and contexts
+      --
+      (_pm, nonpm) = partition pIsPMRule $ concat $ MM.elems $ getRules pmrs
+      --
+      f_nonpm = map (createNonPMRule $ getTerminals pmrs) nonpm
+      --
+      f_pm = []
+
+createNonPMRule :: RankedAlphabet -> PMRSRule -> RSFDRule
+createNonPMRule term (PMRSRule f xs Nothing body) = result
+  where
+    k_tk    = map (\k -> (k,terminal $ tk k)) $ M.keys term
+    body'   = app (foldr (\(k,k') b -> substTerminal k k' b) body k_tk) [var "h_f"]
+    result  = RSFDRule f (xs ++ ["h_f"]) body'
 
 tsetter :: Sort
 tsetter = Data ~> tcont ~> o
@@ -151,7 +167,7 @@ tk :: String -> String
 tk k = "HT_" ++ k
 
 createRulesForT :: DataMap -> (Symbol, Sort) -> [RSFDRule]
-createRulesForT dm (k,Base) = return $ RSFDRule (tk k) ["f"] (mkPair (sToSymbol k) (dmCtxt dm (terminal k)) (var "f"))
+createRulesForT dm (k,Base) = return $ RSFDRule (tk k) ["f"] (mkPair (sToSymbol k) (mkD $ dmCtxt dm (terminal k)) (var "f"))
 createRulesForT dm (k,srt)  = rules
   where
     rules = [tk0,tk1] ++ tki ++ tkn ++ [tkcase]
@@ -196,3 +212,8 @@ createRulesForT dm (k,srt)  = rules
     tkcase     = RSFDRule (stk ++ "_case") tkcasexs tkcasebody
     tkcasexs   = ["c"] ++ map (\i -> "d" ++ show i) [1..n]
     tkcasebody = cont $ dmErr dm -- TODO Do real case distinction.
+
+-- Not a functor!
+homoemorphicExtensionToPair :: Sort -> Sort
+homoemorphicExtensionToPair Base = tpair
+homoemorphicExtensionToPair (Arrow s1 s2) = Arrow (homoemorphicExtensionToPair s1) (homoemorphicExtensionToPair s2)

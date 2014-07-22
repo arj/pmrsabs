@@ -4,7 +4,7 @@ module Term (
   Head(..), Term(..), TypeBinding, Var,
 
   app, var, mkCase, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
-  fv, fv', subst, substAll, subterms, subterms', getN, replaceVarsBy,
+  fv, fv', subst, substAll, substTerminal, subterms, subterms', getN, replaceVarsBy,
   typeCheck, caseVars, height, isTerminalHead, isNTHead, prefixTerms,
   isUsingCase,
   isUsingD,
@@ -140,6 +140,12 @@ replaceVarsBy :: String -> Term -> Term
 -- ^ replaceVarsBy "_" t replaces all variables with "_".
 replaceVarsBy x (App (Var _) ts) = App (Var x) $ map (replaceVarsBy x) ts
 replaceVarsBy x (App t       ts) = App t       $ map (replaceVarsBy x) ts
+
+substTerminal :: Symbol -> Term -> Term -> Term
+substTerminal k tk (App h@(T k') ts)
+  | k == k'    = app tk $ map (substTerminal k tk) ts
+  | otherwise = App h $ map (substTerminal k tk) ts
+substTerminal k tk (App h ts) = App h $ map (substTerminal k tk) ts
 
 -- | Checks whether the term contains a case expression.
 isUsingCase :: Term -> Bool
