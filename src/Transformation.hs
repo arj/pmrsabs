@@ -180,7 +180,9 @@ createRulesForT dm (k,srt) = rules
                    let body = if n == 1
                               then app (nonterminal $ stk ++ "_case") [var "c"]
                               else app (nonterminal $ stk ++ "_2") ([m'] ++ x2_xn ++ [var "c"])
-                   -- We know that there is at least one!
+                   -- We know that there is at least one, because
+                   -- there is a case checking whether the sort is base (which
+                   -- corresponds to arity 0)
                    in mkPi2 (var "x1") m' body
     --
     tki     = []
