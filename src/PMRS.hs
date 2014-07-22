@@ -106,6 +106,7 @@ pIsPMRule (PMRSRule _ _ p _) = isJust p
 pIsPseudo :: PMRSRule -> Bool
 pIsPseudo (PMRSRule _ _ (Just (App (Var _) _)) _) = True
 pIsPseudo (PMRSRule _ _ (Just _              ) _) = False
+pIsPseudo (PMRSRule _ _ Nothing                _) = False
 
 data PMRS = PMRS RankedAlphabet RankedAlphabet PMRSRules Symbol
 
@@ -131,6 +132,7 @@ mkPMRS t nt r s = do
   forM_ rules $ \r' -> do
     let bnd = M.unions [t, nt, typeOfVariables r' nt]
     srt <- typeCheck bnd $ pmrsRuleBody r'
+    when (pIsPseudo r') $ fail ("Pseudo rules are not allowed " ++ show r')
     if srt == o
       then return ()
       else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)

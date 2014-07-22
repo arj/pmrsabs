@@ -145,7 +145,7 @@ example2pmrs = mkPMRS sigma nonterminals r sMain
                                 ,ssN
                                 ,ssListN]
     r :: PMRSRules
-    r = listToRules [PMRSRule "Main" [] (Just m) $ app nFilter [nz, m]
+    r = listToRules [PMRSRule "Main" ["m"] Nothing $ app nFilter [nz, m]
                    ,PMRSRule "If" ["a","b"] (Just true) $ a
                    ,PMRSRule "If" ["a","b"] (Just false) $ b
                    ,PMRSRule "Nz" [] (Just z) $ false
