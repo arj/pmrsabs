@@ -62,14 +62,16 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
       k2   = RSFDRule "HK2" ["n","c","x1","x2"] (app (var "x2") [var "n", var "c"])
       pi1  = RSFDRule "HPi1" ["p"] (app (var "p") [app (nonterminal "HK1") [derr, nonterminal "HCerr"]])
       pi2  = RSFDRule "HPi2" ["p", "n", "c"] (app (var "p") [app (nonterminal "HK2") [var "n", var "c"]])
-      pi2i = RSFDRule "HPi2i" ["p", "c"] (app (var "p") [app (nonterminal "HK2") [dnumber maxheight, var "c"]]) -- Replace 5 with real value
+      pi2i = RSFDRule "HPi2i" ["p", "c"] (app (var "p") [app (nonterminal "HK2") [dnumber maxheight, var "c"]])
       cerr = RSFDRule "HCerr" ["d"] (terminal "herr")
       lift = RSFDRule "HLift" ["c", "f", "d"] (app (var "c") [var "d", var "f"])
       d    = RSFDRule "HD" ["d", "n", "c"] (app (var "c") [var "d"])
       terr = RSFDRule "HTerr" ["f"] (app (nonterminal "HPair") [terminal "herr", (app (nonterminal "HD") [derr]), var "f"])
       s    = RSFDRule "HS" [] (app (nonterminal "HPi1") [nonterminal "S"])
       --
-
+      patterns   = patternDomain pmrs
+      patternmap = zip (S.toList patterns) [1..]
+      maxheight  = maxHeight patterns
       --
       t  = M.fromList [("herr", o)] `M.union` getTerminals pmrs
       fix_nt = M.fromList [("HPair", o ~> tsetter ~> tpair)
@@ -98,13 +100,12 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
       rules = mkRSFDRules $ [pair, k1, k2, pi1, pi2, pi2i, cerr, lift, d, terr, s]
                             ++ tk_rules ++ f_nonpm ++ f_pm
       --
-      maxheight = 5
       -- The mapping is:
       -- error -> D 0
       -- numbers up to n -> D 1 --> D n
       -- contexts -> D n+1 ... D ||p||+n+1
       dctxt :: Term -> Term
-      dctxt t = D 6 -- TODO Fix
+      dctxt t = D 6 -- TODO fix
       --
       dnumber :: Int -> Term
       dnumber n = D n
@@ -112,7 +113,7 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
       derr :: Term
       derr = D 0
       --
-      dm = DataMap derr dnumber dctxt 5 [terminal "herr"] -- TODO Fix number and contexts
+      dm = DataMap derr dnumber dctxt maxheight $ S.toList patterns
       --
       (pm, nonpm) = partition pIsPMRule $ concat $ MM.elems $ getRules pmrs
       --
