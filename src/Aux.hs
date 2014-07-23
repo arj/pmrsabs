@@ -27,3 +27,7 @@ filterMap _ []     = []
 filterMap f (x:xs) = case f x of
 	  Just x' -> x' : filterMap f xs
 	  Nothing -> filterMap f xs
+
+-- | Given a list returns a unique list
+uniqueList :: (Ord a) => [a] -> [a]
+uniqueList = S.toList . S.fromList

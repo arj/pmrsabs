@@ -1,5 +1,6 @@
 module Transformation where
 
+import Aux (uniqueList)
 import RSFD
 import PMRS
 import Term
@@ -7,13 +8,11 @@ import Sorts
 
 import Data.List
 
-import Data.Map (Map)
 import qualified Data.Map as M
 
 import Data.Set (Set)
 import qualified Data.Set as S
 
-import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 
 type Patterns = Set Term
@@ -85,11 +84,16 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
                       ,("HTerr", tpair)
                       ,("HS", o)
                       ]
-      tk_nt = M.unions $ map createNTforT $ M.toList $ getTerminals pmrs
-      tk_rules = concat $ map (createRulesForT dm) $ M.toList $ getTerminals pmrs
+      tk_nt = M.unions $ map createNTforT $ M.toList terminals
+      tk_rules = concat $ map (createRulesForT dm) $ M.toList terminals
       --
-      nt   = tk_nt `M.union` fix_nt `M.union` f_nt
-      f_nt = M.map homoemorphicExtensionToPair $ getNonterminals pmrs
+      terminals = getTerminals pmrs
+      nonterminals =  getNonterminals pmrs
+      nonterminals_pm = M.filterWithKey (curry $ flip elem pm_rules . fst) nonterminals
+      --
+      nt       = tk_nt `M.union` fix_nt `M.union` f_nt `M.union` fcase_nt
+      f_nt     = M.map homoemorphicExtensionToPair nonterminals
+      fcase_nt = M.map createCaseSort $ M.mapKeys (++ "_case") $ nonterminals_pm
       --
       rules = mkRSFDRules $ [pair, k1, k2, pi1, pi2, pi2i, cerr, lift, d, terr, s]
                             ++ tk_rules ++ f_nonpm ++ f_pm
@@ -110,18 +114,55 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
       --
       dm = DataMap derr dnumber dctxt 5 [terminal "herr"] -- TODO Fix number and contexts
       --
-      (_pm, nonpm) = partition pIsPMRule $ concat $ MM.elems $ getRules pmrs
+      (pm, nonpm) = partition pIsPMRule $ concat $ MM.elems $ getRules pmrs
       --
-      f_nonpm = map (createNonPMRule $ getTerminals pmrs) nonpm
+      f_nonpm = map (createNonPMRule terminals) nonpm
       --
-      f_pm = []
+      pm_rules = uniqueList $ map pmrsRuleF pm
+      f_pm     = concat $ map createPMRuleForSymbol $ pm_rules
+      --
+      createPMRuleForSymbol f = createPMrules dm terminals $ f `MM.lookup` getRules pmrs
+
+createCaseSort :: Sort -> Sort
+createCaseSort s = homoemorphicExtensionToPair s'
+  where
+    sortLst = sortToList s
+    xs = init $ init sortLst
+    res = last sortLst
+    --
+    s' = sortFromList $ xs ++ [Data, res]
+
+-- | Creates a fresh variable name that is not
+-- in xs and has a prefix f.
+freshVar :: [String] -> String -> String
+freshVar xs f
+  | f `elem` xs = freshVar xs (f ++ "h")
+  | otherwise   = f
 
 createNonPMRule :: RankedAlphabet -> PMRSRule -> RSFDRule
 createNonPMRule term (PMRSRule f xs Nothing body) = result
   where
+    h_f     = freshVar xs "f"
     k_tk    = map (\k -> (k,terminal $ tk k)) $ M.keys term
-    body'   = app (foldr (\(k,k') b -> substTerminal k k' b) body k_tk) [var "h_f"]
-    result  = RSFDRule f (xs ++ ["h_f"]) body'
+    body'   = app (foldr (\(k,k') b -> substTerminal k k' b) body k_tk) [var h_f]
+    result  = RSFDRule f (xs ++ [h_f]) body'
+
+createPMrules :: DataMap -> RankedAlphabet -> [PMRSRule] -> [RSFDRule]
+createPMrules _ _ [] = error $ "createPMRules may not be called for an empty list of rules."
+createPMrules dm _term _rs@(PMRSRule g xs _ _ : _) = [baseRule, caseRule]
+  where
+    y = freshVar xs "p"
+    f = freshVar xs "f"
+    baseRule = RSFDRule g (xs ++ [y,f]) baseBody
+    baseBody = mkPi2i (var y) (mkLift (mkFcase xs) (var f))
+    --
+    g_case = g ++ "_case"
+    mkFcase args = app (nonterminal g_case) $ map var args
+    --
+    caseRule = RSFDRule g_case (xs ++ [y,f]) caseBody
+    caseBody = mkCase y $ cases
+    cases    = createCases fErr dm fErr fErr
+    fErr     = const $ mkTerr $ var f
 
 tsetter :: Sort
 tsetter = Data ~> tcont ~> o
@@ -141,8 +182,17 @@ mkPi1 t = app (nonterminal "HPi1") [t]
 mkPi2 :: Term -> Term -> Term -> Term
 mkPi2 p n c = app (nonterminal "HPi2") [p,n,c] 
 
+mkPi2i :: Term -> Term -> Term
+mkPi2i p c = app (nonterminal "HPi2i") [p,c]
+
 mkD :: Term -> Term
 mkD d = app (nonterminal "HD") [d]
+
+mkLift :: Term -> Term -> Term
+mkLift c f = app (nonterminal "HLift") [c,f]
+
+mkTerr :: Term -> Term
+mkTerr f = app (nonterminal "HTerr") [f]
 
 createNTforT :: (Symbol, Sort) -> RankedAlphabet
 createNTforT (k,Base) = M.singleton (tk k) tpair
@@ -216,4 +266,5 @@ createRulesForT dm (k,srt)  = rules
 -- Not a functor!
 homoemorphicExtensionToPair :: Sort -> Sort
 homoemorphicExtensionToPair Base = tpair
+homoemorphicExtensionToPair Data = Data
 homoemorphicExtensionToPair (Arrow s1 s2) = Arrow (homoemorphicExtensionToPair s1) (homoemorphicExtensionToPair s2)
