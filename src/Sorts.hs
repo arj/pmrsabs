@@ -1,6 +1,7 @@
 module Sorts (
   Sort(..), SortedSymbol(..), RankedAlphabet, Symbol,
   createSort,
+  removeSigma0,
   o, (~>),
   ar,
   sortToList, sortFromList,
@@ -31,6 +32,9 @@ instance Show Sort where
   show (Arrow s1 s2)            = "(" ++ show s1 ++ ") -> " ++ show s2
 
 type RankedAlphabet = Map Symbol Sort
+
+removeSigma0 :: RankedAlphabet -> RankedAlphabet
+removeSigma0 = M.filter (\srt -> ar srt > 0)
 
 mkRankedAlphabet :: [SortedSymbol] -> RankedAlphabet
 mkRankedAlphabet = foldl f M.empty
