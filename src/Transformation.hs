@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 module Transformation where
 
 import Aux (uniqueList)
@@ -14,6 +15,10 @@ import Data.Set (Set)
 import qualified Data.Set as S
 
 import qualified Data.MultiMap as MM
+
+import Control.Monad (replicateM)
+import Debug.Trace (trace)
+import Text.Printf (printf)
 
 type Patterns = Set Term
 
@@ -53,10 +58,32 @@ createCases wrapper dm intRes ctxtRes = [wrapper (dmErr dm)] ++ intcases ++ term
     intcases  = map intRes [1..dmNumCount dm]
     termcases = map ctxtRes $ dmCtxts dm
 
+-- | Creates all possible contexts from the ranked alphabet ra
+-- up to height n.
+-- Careful if arity of terminal symbols in ra is larger than 1 this
+-- explodes rather fast (exponential!)
+contextsUpToHeight :: RankedAlphabet -> Int -> Set Term
+contextsUpToHeight _  0 = S.empty
+contextsUpToHeight ra 1 = S.map terminal sigma0
+  where
+    sigma0 = M.keysSet $ M.filter ((0 ==) . ar) ra
+contextsUpToHeight ra n = ctxtsPred `S.union` ctxts
+  where
+    ctxtsPred = contextsUpToHeight ra (n-1)
+    ctxts = S.unions $ map enlargeCtxt tNot0
+    --
+    enlargeCtxt :: (Symbol, Sort) -> Set Term
+    enlargeCtxt (k,srt) = S.fromList $ map (app (terminal k)) $ replicateM (ar srt) $ S.toList ctxtsPred
+    --
+    tNot0 = M.toList $ removeSigma0 ra
 
 wPMRStoRSFD :: Monad m => PMRS -> m RSFD
-wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
+wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules "HS"
     where
+      debugInfo = printf "DEBUG\nPatterns = %s\n||P|| = %i\n|C| = %i"
+                  (show patternmap)
+                  (maxheight)
+                  (S.size contexts)
       pair = RSFDRule "HPair" ["x","y","f"] (app (var "f") [var "x", var "y"])
       k1   = RSFDRule "HK1" ["n","c","x1","x2"] (var "x1")
       k2   = RSFDRule "HK2" ["n","c","x1","x2"] (app (var "x2") [var "n", var "c"])
@@ -69,8 +96,10 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
       terr = RSFDRule "HTerr" ["f"] (app (nonterminal "HPair") [terminal "herr", (app (nonterminal "HD") [derr]), var "f"])
       s    = RSFDRule "HS" [] (app (nonterminal "HPi1") [nonterminal "S"])
       --
-      patterns   = patternDomain pmrs
-      patternmap = zip (S.toList patterns) [1..]
+      contexts   = contextsUpToHeight terminals maxheight
+      --
+      patterns   = patternDomain pmrs -- TODO Use contexts here!
+      patternmap = zipWith (\p i -> (p,D i)) (S.toList patterns) [maxheight + 1..]
       maxheight  = maxHeight patterns
       --
       t  = M.fromList [("herr", o)] `M.union` getTerminals pmrs
@@ -113,7 +142,7 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules "HS"
       derr :: Term
       derr = D 0
       --
-      dm = DataMap derr dnumber dctxt maxheight $ S.toList patterns
+      dm = DataMap derr dnumber dctxt maxheight $ S.toList contexts
       --
       (pm, nonpm) = partition pIsPMRule $ concat $ MM.elems $ getRules pmrs
       --
