@@ -17,6 +17,7 @@ import qualified Data.Set as S
 import qualified Data.MultiMap as MM
 
 import Control.Monad (replicateM)
+import Control.Monad.Reader
 import Debug.Trace (trace)
 import Text.Printf (printf)
 
@@ -77,24 +78,62 @@ contextsUpToHeight ra n = ctxtsPred `S.union` ctxts
     --
     tNot0 = M.toList $ removeSigma0 ra
 
+data TransCfg = TransCfg
+                 { tcPair :: String
+                 , tcK1   :: String
+                 , tcK2   :: String
+                 , tcPi1  :: String
+                 , tcPi2  :: String
+                 , tcPi2i :: String
+                 , tcCerr :: String
+                 , tcLift :: String
+                 , tcD    :: String
+                 , tcTerr :: String
+                 , tcS    :: String
+                 , tcErr  :: String
+                 }
+
+createConfig :: PMRS -> TransCfg
+createConfig pmrs = cfg
+  where
+    terminals    = M.keys $ getTerminals pmrs
+    nonterminals = M.keys $ getNonterminals pmrs
+    --
+    cfg = TransCfg
+               { tcPair = freshVar nonterminals "Pair"
+               , tcK1   = freshVar nonterminals "K1"
+               , tcK2   = freshVar nonterminals "K2"
+               , tcPi1  = freshVar nonterminals "Pi1"
+               , tcPi2  = freshVar nonterminals "Pi2"
+               , tcPi2i = freshVar nonterminals "Pi2i"
+               , tcCerr = freshVar nonterminals "Cerr"
+               , tcLift = freshVar nonterminals "Lift"
+               , tcD    = freshVar nonterminals "D"
+               , tcTerr = freshVar nonterminals "Terr"
+               , tcS    = freshVar nonterminals "S"
+               , tcErr  = freshVar terminals "err"
+               }
+
+
 wPMRStoRSFD :: Monad m => PMRS -> m RSFD
-wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules "HS"
+wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules $ tcS cfg
     where
+      cfg = createConfig pmrs
       debugInfo = printf "DEBUG\nPatterns = %s\n||P|| = %i\n|C| = %i"
                   (show patternmap)
                   (maxheight)
                   (S.size contexts)
-      pair = RSFDRule "HPair" ["x","y","f"] (app (var "f") [var "x", var "y"])
-      k1   = RSFDRule "HK1" ["n","c","x1","x2"] (var "x1")
-      k2   = RSFDRule "HK2" ["n","c","x1","x2"] (app (var "x2") [var "n", var "c"])
-      pi1  = RSFDRule "HPi1" ["p"] (app (var "p") [app (nonterminal "HK1") [derr, nonterminal "HCerr"]])
-      pi2  = RSFDRule "HPi2" ["p", "n", "c"] (app (var "p") [app (nonterminal "HK2") [var "n", var "c"]])
-      pi2i = RSFDRule "HPi2i" ["p", "c"] (app (var "p") [app (nonterminal "HK2") [dnumber maxheight, var "c"]])
-      cerr = RSFDRule "HCerr" ["d"] (terminal "herr")
-      lift = RSFDRule "HLift" ["c", "f", "d"] (app (var "c") [var "d", var "f"])
-      d    = RSFDRule "HD" ["d", "n", "c"] (app (var "c") [var "d"])
-      terr = RSFDRule "HTerr" ["f"] (app (nonterminal "HPair") [terminal "herr", (app (nonterminal "HD") [derr]), var "f"])
-      s    = RSFDRule "HS" [] (app (nonterminal "HPi1") [nonterminal "S"])
+      pair = RSFDRule (tcPair cfg) ["x","y","f"] (app (var "f") [var "x", var "y"])
+      k1   = RSFDRule (tcK1 cfg) ["n","c","x1","x2"] (var "x1")
+      k2   = RSFDRule (tcK2 cfg) ["n","c","x1","x2"] (app (var "x2") [var "n", var "c"])
+      pi1  = RSFDRule (tcPi1 cfg) ["p"] (app (var "p") [app (nonterminal (tcK1 cfg)) [derr, nonterminal $ tcCerr cfg]])
+      pi2  = RSFDRule (tcPi2 cfg) ["p", "n", "c"] (app (var "p") [app (nonterminal $ tcK2 cfg) [var "n", var "c"]])
+      pi2i = RSFDRule (tcPi2i cfg) ["p", "c"] (app (var "p") [app (nonterminal $ tcK2 cfg) [dnumber maxheight, var "c"]])
+      cerr = RSFDRule (tcCerr cfg) ["d"] (terminal $ tcErr cfg)
+      lift = RSFDRule (tcLift cfg) ["c", "f", "d"] (app (var "c") [var "d", var "f"])
+      d    = RSFDRule (tcD cfg) ["d", "n", "c"] (app (var "c") [var "d"])
+      terr = RSFDRule (tcTerr cfg) ["f"] (app (nonterminal $ tcPair cfg) [terminal $ tcErr cfg, (app (nonterminal $ tcD cfg) [derr]), var "f"])
+      s    = RSFDRule (tcS cfg) [] (app (nonterminal $ tcPi1 cfg) [nonterminal "S"]) -- $ getStartSymbol pmrs])
       --
       contexts   = contextsUpToHeight terminals maxheight
       --
@@ -102,24 +141,26 @@ wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules "HS"
       patternmap = zipWith (\p i -> (p,D i)) (S.toList patterns) [maxheight + 1..]
       maxheight  = maxHeight patterns
       --
-      t  = M.fromList [("herr", o)] `M.union` getTerminals pmrs
-      fix_nt = M.fromList [("HPair", o ~> tsetter ~> tpair)
-                      ,("HK1", Data ~> tcont ~> o ~> tsetter ~> o)
-                      ,("HK2", Data ~> tcont ~> o ~> tsetter ~> o)
-                      ,("HPi1", tpair ~> o)
-                      ,("HPi2", tpair ~> Data ~> tcont ~> o)
-                      ,("HPi2i", tpair ~> tcont ~> o)
-                      ,("HCerr", tcont)
-                      ,("HLift", (Data ~> tpair) ~> (o ~> tsetter ~> o) ~> tcont)
-                      ,("HD", Data ~> tsetter)
-                      ,("HTerr", tpair)
-                      ,("HS", o)
+      t  = M.insert (tcErr cfg) o $ getTerminals pmrs
+      fix_nt = M.fromList [(tcPair cfg, o ~> tsetter ~> tpair)
+                      ,(tcK1 cfg, Data ~> tcont ~> o ~> tsetter ~> o)
+                      ,(tcK2 cfg, Data ~> tcont ~> o ~> tsetter ~> o)
+                      ,(tcPi1 cfg, tpair ~> o)
+                      ,(tcPi2 cfg, tpair ~> Data ~> tcont ~> o)
+                      ,(tcPi2i cfg, tpair ~> tcont ~> o)
+                      ,(tcCerr cfg, tcont)
+                      ,(tcLift cfg, (Data ~> tpair) ~> (o ~> tsetter ~> o) ~> tcont)
+                      ,(tcD cfg, Data ~> tsetter)
+                      ,(tcTerr cfg, tpair)
+                      ,(tcS cfg, o)
                       ]
       tk_nt = M.unions $ map createNTforT $ M.toList terminals
-      tk_rules = concat $ map (createRulesForT dm) $ M.toList terminals
+      tk_rules = concat $ map (createRulesForT cfg dm) $ M.toList terminals
       --
       terminals = getTerminals pmrs
+      tsymbols  = M.keys terminals
       nonterminals =  getNonterminals pmrs
+      ntsymbols = M.keys nonterminals
       nonterminals_pm = M.filterWithKey (curry $ flip elem pm_rules . fst) nonterminals
       --
       nt       = tk_nt `M.union` fix_nt `M.union` f_nt `M.union` fcase_nt
@@ -151,7 +192,7 @@ wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules "HS"
       pm_rules = uniqueList $ map pmrsRuleF pm
       f_pm     = concat $ map createPMRuleForSymbol $ pm_rules
       --
-      createPMRuleForSymbol f = createPMrules dm terminals $ f `MM.lookup` getRules pmrs
+      createPMRuleForSymbol f = createPMrules cfg dm terminals $ f `MM.lookup` getRules pmrs
 
 createCaseSort :: Sort -> Sort
 createCaseSort s = homoemorphicExtensionToPair s'
@@ -166,7 +207,7 @@ createCaseSort s = homoemorphicExtensionToPair s'
 -- in xs and has a prefix f.
 freshVar :: [String] -> String -> String
 freshVar xs f
-  | f `elem` xs = freshVar xs (f ++ "h")
+  | f `elem` xs = freshVar xs (f ++ "_")
   | otherwise   = f
 
 createNonPMRule :: RankedAlphabet -> PMRSRule -> RSFDRule
@@ -177,14 +218,14 @@ createNonPMRule term (PMRSRule f xs Nothing body) = result
     body'   = app (foldr (\(k,k') b -> substTerminal k k' b) body k_tk) [var h_f]
     result  = RSFDRule f (xs ++ [h_f]) body'
 
-createPMrules :: DataMap -> RankedAlphabet -> [PMRSRule] -> [RSFDRule]
-createPMrules _ _ [] = error $ "createPMRules may not be called for an empty list of rules."
-createPMrules dm _term _rs@(PMRSRule g xs _ _ : _) = [baseRule, caseRule]
+createPMrules :: TransCfg -> DataMap -> RankedAlphabet -> [PMRSRule] -> [RSFDRule]
+createPMrules _ _ _ [] = error $ "createPMRules may not be called for an empty list of rules."
+createPMrules cfg dm _term _rs@(PMRSRule g xs _ _ : _) = [baseRule, caseRule]
   where
     y = freshVar xs "p"
     f = freshVar xs "f"
     baseRule = RSFDRule g (xs ++ [y,f]) baseBody
-    baseBody = mkPi2i (var y) (mkLift (mkFcase xs) (var f))
+    baseBody = mkPi2i cfg (var y) (mkLift cfg (mkFcase xs) (var f))
     --
     g_case = g ++ "_case"
     mkFcase args = app (nonterminal g_case) $ map var args
@@ -192,7 +233,7 @@ createPMrules dm _term _rs@(PMRSRule g xs _ _ : _) = [baseRule, caseRule]
     caseRule = RSFDRule g_case (xs ++ [y,f]) caseBody
     caseBody = mkCase y $ cases
     cases    = createCases fErr dm fErr fErr
-    fErr     = const $ mkTerr $ var f
+    fErr     = const $ mkTerr cfg $ var f
 
 tsetter :: Sort
 tsetter = Data ~> tcont ~> o
@@ -203,26 +244,26 @@ tcont = Data ~> o
 tpair :: Sort
 tpair = (o ~> tsetter ~> o) ~> o
 
-mkPair :: Term -> Term -> Term -> Term
-mkPair x y f = app (nonterminal "HPair") [x,y,f]
+mkPair :: TransCfg -> Term -> Term -> Term -> Term
+mkPair cfg x y f = app (nonterminal $ tcPair cfg) [x,y,f]
 
-mkPi1 :: Term -> Term
-mkPi1 t = app (nonterminal "HPi1") [t]
+mkPi1 :: TransCfg -> Term -> Term
+mkPi1 cfg t = app (nonterminal $ tcPi1 cfg) [t]
 
-mkPi2 :: Term -> Term -> Term -> Term
-mkPi2 p n c = app (nonterminal "HPi2") [p,n,c] 
+mkPi2 :: TransCfg -> Term -> Term -> Term -> Term
+mkPi2 cfg p n c = app (nonterminal $ tcPi2 cfg) [p,n,c]
 
-mkPi2i :: Term -> Term -> Term
-mkPi2i p c = app (nonterminal "HPi2i") [p,c]
+mkPi2i :: TransCfg -> Term -> Term -> Term
+mkPi2i cfg p c = app (nonterminal $ tcPi2i cfg) [p,c]
 
-mkD :: Term -> Term
-mkD d = app (nonterminal "HD") [d]
+mkD :: TransCfg -> Term -> Term
+mkD cfg d = app (nonterminal $ tcD cfg) [d]
 
-mkLift :: Term -> Term -> Term
-mkLift c f = app (nonterminal "HLift") [c,f]
+mkLift :: TransCfg -> Term -> Term -> Term
+mkLift cfg c f = app (nonterminal $ tcLift cfg) [c,f]
 
-mkTerr :: Term -> Term
-mkTerr f = app (nonterminal "HTerr") [f]
+mkTerr :: TransCfg -> Term -> Term
+mkTerr cfg f = app (nonterminal $ tcTerr cfg) [f]
 
 createNTforT :: (Symbol, Sort) -> RankedAlphabet
 createNTforT (k,Base) = M.singleton (tk k) tpair
@@ -246,9 +287,9 @@ createParamList n = zipWith pairUp (repeat "x") [1..n]
 tk :: String -> String
 tk k = "HT_" ++ k
 
-createRulesForT :: DataMap -> (Symbol, Sort) -> [RSFDRule]
-createRulesForT dm (k,Base) = return $ RSFDRule (tk k) ["f"] (mkPair (sToSymbol k) (mkD $ dmCtxt dm (terminal k)) (var "f"))
-createRulesForT dm (k,srt)  = rules
+createRulesForT :: TransCfg -> DataMap -> (Symbol, Sort) -> [RSFDRule]
+createRulesForT cfg dm (k,Base) = return $ RSFDRule (tk k) ["f"] (mkPair cfg (sToSymbol k) (mkD cfg $ dmCtxt dm (terminal k)) (var "f"))
+createRulesForT cfg dm (k,srt)  = rules
   where
     rules = [tk0,tk1] ++ tki ++ tkn ++ [tkcase]
     n     = ar srt
@@ -258,8 +299,8 @@ createRulesForT dm (k,srt)  = rules
     --
     tk0     = RSFDRule stk (tk0xs ++ ["f"]) tk0body
     tk0xs   = createParamList n
-    tk0body = mkPair tk0left tk0right (var "f")
-    tk0left = app (terminal k) $ map (mkPi1 . var) tk0xs
+    tk0body = mkPair cfg tk0left tk0right (var "f")
+    tk0left = app (terminal k) $ map (mkPi1 cfg . var) tk0xs
     tk0right = app (nonterminal (stk ++ "_1")) $ map var tk0xs
     --
     tk1     = RSFDRule (stk ++ "_1") tk1xs tk1body
@@ -276,7 +317,7 @@ createRulesForT dm (k,srt)  = rules
                    -- We know that there is at least one, because
                    -- there is a case checking whether the sort is base (which
                    -- corresponds to arity 0)
-                   in mkPi2 (var "x1") m' body
+                   in mkPi2 cfg (var "x1") m' body
     --
     tki     = []
     --
@@ -287,7 +328,7 @@ createRulesForT dm (k,srt)  = rules
     tkndis  = map (\i -> "d" ++ show i) [1..n-1]
     tkn_xn  = "x" ++ show n
     tknbody = let c = (app (nonterminal $ stk ++ "_case") $ [var "c"] ++ map var tkndis) in
-              mkPi2 (var tkn_xn) (var "m") c
+              mkPi2 cfg (var tkn_xn) (var "m") c
     --
     tkcase     = RSFDRule (stk ++ "_case") tkcasexs tkcasebody
     tkcasexs   = ["c"] ++ map (\i -> "d" ++ show i) [1..n]
