@@ -1,29 +1,20 @@
 module RSFD
 where
 
+import Data.List
+import Data.Map (Map)
+import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.MultiMap as MM
+import Control.Monad (forM_, when)
+import Control.Monad.Writer (Writer, tell, execWriter)
+import Data.Maybe (fromMaybe, fromJust)
+
 import Aux
 import Sorts
 import Term
 import PMRS (PMRS, getRules, PMRSRule(..), PMRSRules, unmakePMRS, filterRealPMRule, pIsPMRule, pIsPseudo)
-import qualified PMRS as P
 import CommonRS
-
-import Data.List
-
-import Data.Map (Map)
-import qualified Data.Map as M
-
-import Data.Set (Set)
-import qualified Data.Set as S
-
-import Data.MultiMap (MultiMap)
-import qualified Data.MultiMap as MM
-
-import Control.Monad.Writer
-
-import Data.Maybe
-
-import Debug.Trace
 
 data RSFDRule = RSFDRule { rsfdRuleHead :: Symbol
   , rsfdRuleVars :: [String]
@@ -53,7 +44,7 @@ mkRSFDRules lst = MM.fromList $ map fPairUp lst
 -- Be careful with eta abstraction!
 typeOfVariables :: RSFDRule -> RankedAlphabet -> TypeBinding
 typeOfVariables (RSFDRule _ [] _) _  = M.empty
-typeOfVariables r@(RSFDRule f xs _) ra = 
+typeOfVariables (RSFDRule f xs _) ra = 
   if length types == length xs + 1
     then M.fromList $ zip xs types -- omitting return type!
     else M.fromList $ (lastx,lasttp) : inittp
@@ -66,7 +57,7 @@ typeOfVariables r@(RSFDRule f xs _) ra =
     inittp = zip initxs types
     resttp = drop (length initxs) types
     lasttp = if null resttp
-             then trace (show r) Base
+             then Base
              else foldr1 (~>) resttp
 
 

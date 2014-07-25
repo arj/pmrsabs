@@ -6,12 +6,11 @@ import Aux
 import PMRS
 import Term
 
-import Control.Exception
+-- import Control.Exception
 import Control.Concurrent (threadDelay)
 import System.IO
 import System.IO.Temp
 import System.Process (readProcess)
-import Debug.Trace (trace)
 
 data ATT = ATT
 
@@ -36,7 +35,7 @@ preface grammar att =
 		hPutStr h input
 		hFlush h
 		--out <- catch (evaluate $ readProcess prefacePath [path] "") $ \(e :: IOError) -> Left e
-		out <- readProcess prefacePath [path] ""
+		_out <- readProcess prefacePath [path] ""
 		threadDelay 50000000
 		return $ Right Accepted
   where

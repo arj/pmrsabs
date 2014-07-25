@@ -25,8 +25,6 @@ import qualified Data.Map as M
 import Control.Monad
 import Control.Monad.Error
 
-import Debug.Trace (trace)
-
 import Aux
 import Sorts
 
@@ -271,8 +269,10 @@ ntCut (App h      ts) = App h $ map ntCut ts
 ntCut (D d)           = D d
 ntCut (Case x ts)     = Case x $ map ntCut ts
 
+-- | Creates the set of terminals created
+-- from symbols of arity n.
 terminalSigma :: Int -> RankedAlphabet -> [Term]
-terminalSigma n ra = map terminal $ M.keys $ sigma 0 ra
+terminalSigma n ra = map terminal $ M.keys $ sigmaN n ra
 
 -- | Creates all possible contexts from the ranked alphabet ra
 -- of height n.
@@ -294,9 +294,10 @@ trees' ra n = ctxts ++ terminalSigma 0 ra
     --
     tNot0 = M.toList $ removeSigma0 ra
 
+-- | Creates the set of trees from 
 trees :: RankedAlphabet -> Int -> Set Term
 trees ra n = S.fromList $ trees' ra n
 
--- |Returns the maximal height of the trees listed.
+-- | Returns the maximal height of the trees listed.
 maxHeight :: [Term] -> Int
 maxHeight = maximum . map height

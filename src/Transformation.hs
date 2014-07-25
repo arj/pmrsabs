@@ -136,9 +136,7 @@ wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules $ tcS cfg
       tk_rules = concat $ map (createRulesForT cfg dm) $ M.toList terminals
       --
       terminals = getTerminals pmrs
-      tsymbols  = M.keys terminals
       nonterminals =  getNonterminals pmrs
-      ntsymbols = M.keys nonterminals
       nonterminals_pm = M.filterWithKey (curry $ flip elem pm_rules . fst) nonterminals
       --
       nt       = tk_nt `M.union` fix_nt `M.union` f_nt `M.union` fcase_nt
@@ -153,7 +151,7 @@ wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules $ tcS cfg
       -- numbers up to n -> D 1 --> D n
       -- contexts -> D n+1 ... D ||p||+n+1
       dctxt :: Term -> Term
-      dctxt t = D 6 -- TODO fix
+      dctxt _ = D 6 -- TODO fix
       --
       dnumber :: Int -> Term
       dnumber n = D n

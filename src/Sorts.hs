@@ -2,7 +2,7 @@ module Sorts (
   Sort(..), SortedSymbol(..), RankedAlphabet, Symbol,
   createSort,
   removeSigma0,
-  sigma,
+  sigmaN,
   o, (~>),
   ar,
   sortToList, sortFromList,
@@ -15,8 +15,6 @@ import qualified Data.Set as S
 
 import Data.Map (Map)
 import qualified Data.Map as M
-
-import Debug.Trace (trace)
 
 type Symbol = String
 
@@ -37,8 +35,8 @@ type RankedAlphabet = Map Symbol Sort
 removeSigma0 :: RankedAlphabet -> RankedAlphabet
 removeSigma0 = M.filter (\srt -> ar srt > 0)
 
-sigma :: Int -> RankedAlphabet -> RankedAlphabet
-sigma n = M.filter ((n ==) . ar)
+sigmaN :: Int -> RankedAlphabet -> RankedAlphabet
+sigmaN n = M.filter ((n ==) . ar)
 
 mkRankedAlphabet :: [SortedSymbol] -> RankedAlphabet
 mkRankedAlphabet = foldl f M.empty
@@ -58,7 +56,7 @@ data SortedSymbol = SortedSymbol { ssF :: Symbol
   deriving (Eq,Ord)
 
 instance Show SortedSymbol where
-  show (SortedSymbol s srt) = s-- ++ ":" ++ show srt
+  show (SortedSymbol s _srt) = s-- ++ ":" ++ show srt
 
 o :: Sort
 o = Base

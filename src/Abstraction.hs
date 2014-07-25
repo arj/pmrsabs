@@ -9,34 +9,21 @@ module Abstraction
   )
 where
 
-import Prelude hiding (pi)
+import           Prelude hiding (pi)
+import           Control.Arrow (first)
+import           Data.SetMap (SetMap)
+import qualified Data.SetMap as SM
+import qualified Data.MultiMap as MM
+import qualified Data.Map as M
+import           Data.Set (Set)
+import qualified Data.Set as S
+import           Data.Char (toUpper)
 
 import Aux
 import PMRS hiding (step)
 import Term
 import Sorts
 import CommonRS
-
-import Control.Arrow (first)
-
-import Data.SetMap (SetMap)
-import qualified Data.SetMap as SM
-
---import Data.MultiMap (MultiMap)
-import qualified Data.MultiMap as MM
-
-import Data.Map (Map)
-import qualified Data.Map as M
-
-import Data.Set (Set)
-import qualified Data.Set as S
-
-import Data.Char
-
-import Debug.Trace
-
-traceRet :: Show a => String -> a -> a
-traceRet str a = let b = a in trace (str ++ " return " ++ show b) b
 
 -- | A binding is a map from a string to a set of terms.
 type Binding = SetMap String Term
@@ -190,9 +177,9 @@ headToUpper (x:xs) = toUpper x : xs
 -- | Generates a weak PMRS from a start symbol (0-order HORS included into the PMRS),
 -- and a PMRS.
 wPMRS :: Monad m => Symbol -> PMRS -> m PMRS
-wPMRS gs pmrs = mkWPMRS sigma nt' rs' s'
+wPMRS gs pmrs = mkWPMRS sig nt' rs' s'
   where
-    sigma  = getTerminals pmrs
+    sig    = getTerminals pmrs
     nt     = getNonterminals pmrs
     rs     = getRules pmrs
     s      = getStartSymbol pmrs

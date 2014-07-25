@@ -7,41 +7,24 @@ module Examples
 --)
 where
 
+import           Data.Set      (Set)
+import qualified Data.Set      as S
+import qualified Data.SetMap as SM
+import           Control.Monad (liftM)
+
 import           Abstraction
 import           PMRS
 import           Sorts
 import           Term
-import           RSFD
-
-import           Data.Set      (Set)
-import qualified Data.Set      as S
-
-import Data.SetMap (SetMap)
-import qualified Data.SetMap as SM
-
-import Control.Monad
 
 
+example5 :: (Set Term, Set Term, Set Term)
 example5 = (example5_1, example5_2, example5_3)
   where
-    x :: Term
-    x = var "x"
-    y :: Term
-    y = var "y"
-    z :: Term
-    z = var "z"
-    n :: Term
-    n = symbol "N"
-    b :: Term
-    b = symbol "b"
     f :: Term
     f = symbol "F"
     g :: Term
     g = symbol "G"
-    c :: Term
-    c = symbol "c"
-    a :: Term
-    a = symbol "a"
 
     s1 :: Binding
     s1 = SM.fromList [("x", app y [b])
@@ -64,65 +47,154 @@ example5 = (example5_1, example5_2, example5_3)
     example5_3 :: Set Term
     example5_3 = substHead s2 $ app f [x, app g [x]]
 
+m :: Term
 m    = var "m"
-a    = var "a"
-b    = var "b"
-c    = var "c"
-x    = var "x"
-xs   = var "xs"
-varn = var "n"
-p    = var "p"
-phi  = var "phi"
-psi  = var "psi"
---
-ssfoo    = SortedSymbol "foo" o
-sszero   = SortedSymbol "zero" o
-ssone    = SortedSymbol "one" o
-sstrue   = SortedSymbol "true" o
-ssfalse  = SortedSymbol "false" o
-ssnil    = SortedSymbol "nil" o
-sscons   = SortedSymbol "cons" $ o ~> o ~> o
-ssz      = SortedSymbol "z" o
-sss      = SortedSymbol "s" $ o ~> o
-ssNz     = SortedSymbol "Nz" $ o ~> o
-ssFilter = SortedSymbol "Filter" $ (o ~> o) ~> o ~> o
-sS       = "S"
-ssS      = SortedSymbol sS o
-ssN      = SortedSymbol "N" o
-ssListN  = SortedSymbol "ListN" o
-ssMap2   = SortedSymbol "Map2" $ (o ~> o) ~> (o ~> o) ~> o ~> o
-ssKZero  = SortedSymbol "KZero" $ o ~> o
-ssKOne   = SortedSymbol "KOne"  $ o ~> o
---
-sMain  = "Main"
-ssMain = SortedSymbol sMain $ o ~> o
-ssIf   = SortedSymbol "If" $ o ~> o ~> o ~> o
---
-foo     = ssToSymbol ssfoo
-true    = ssToSymbol sstrue
-false   = ssToSymbol ssfalse
-nil     = ssToSymbol ssnil
-cons    = ssToSymbol sscons
-z       = ssToSymbol ssz
-s       = ssToSymbol sss
-nz      = ssToSymbol ssNz
-nFilter = ssToSymbol ssFilter
-main    = ssToSymbol ssMain
-sif     = ssToSymbol ssIf
-nS      = ssToSymbol ssS
-n       = ssToSymbol ssN
-listN   = ssToSymbol ssListN
-zero    = ssToSymbol sszero
-one     = ssToSymbol ssone
-kzero   = ssToSymbol ssKZero
-kone    = ssToSymbol ssKOne
-map2    = ssToSymbol ssMap2
---
-mkIf a b cond = app sif [a,b,cond]
-mkCons x xs = app cons [x,xs]
-mkFilter p xs = app nFilter [p,xs]
-mkMap2 phi psi lst = app map2 [phi,psi,lst]
 
+a:: Term
+a    = var "a"
+
+b :: Term
+b    = var "b"
+
+c :: Term
+c    = var "c"
+
+x :: Term
+x    = var "x"
+
+y :: Term
+y = var "y"
+
+xs :: Term
+xs   = var "xs"
+
+varn :: Term
+varn = var "n"
+
+p :: Term
+p    = var "p"
+
+phi :: Term
+phi  = var "phi"
+
+psi :: Term
+psi  = var "psi"
+
+ssfoo :: SortedSymbol
+ssfoo    = SortedSymbol "foo" o
+
+sszero :: SortedSymbol
+sszero   = SortedSymbol "zero" o
+
+ssone :: SortedSymbol
+ssone    = SortedSymbol "one" o
+
+sstrue :: SortedSymbol
+sstrue   = SortedSymbol "true" o
+
+ssfalse :: SortedSymbol
+ssfalse  = SortedSymbol "false" o
+
+ssnil :: SortedSymbol
+ssnil    = SortedSymbol "nil" o
+
+sscons :: SortedSymbol
+sscons   = SortedSymbol "cons" $ o ~> o ~> o
+
+ssz :: SortedSymbol
+ssz      = SortedSymbol "z" o
+
+sss :: SortedSymbol
+sss      = SortedSymbol "s" $ o ~> o
+
+ssNz :: SortedSymbol
+ssNz     = SortedSymbol "Nz" $ o ~> o
+
+ssFilter :: SortedSymbol
+ssFilter = SortedSymbol "Filter" $ (o ~> o) ~> o ~> o
+
+sS :: String
+sS = "S"
+
+ssS :: SortedSymbol
+ssS = SortedSymbol sS o
+
+ssN :: SortedSymbol
+ssN = SortedSymbol "N" o
+
+ssListN :: SortedSymbol
+ssListN = SortedSymbol "ListN" o
+
+ssMap2 :: SortedSymbol
+ssMap2  = SortedSymbol "Map2" $ (o ~> o) ~> (o ~> o) ~> o ~> o
+
+ssKZero :: SortedSymbol
+ssKZero = SortedSymbol "KZero" $ o ~> o
+
+ssKOne :: SortedSymbol
+ssKOne = SortedSymbol "KOne"  $ o ~> o
+
+sMain :: String
+sMain = "Main"
+
+ssMain :: SortedSymbol
+ssMain = SortedSymbol sMain $ o ~> o
+
+ssIf :: SortedSymbol
+ssIf   = SortedSymbol "If" $ o ~> o ~> o ~> o
+
+foo :: Term
+foo     = ssToSymbol ssfoo
+true :: Term
+true    = ssToSymbol sstrue
+false :: Term
+false   = ssToSymbol ssfalse
+nil :: Term
+nil     = ssToSymbol ssnil
+cons :: Term
+cons    = ssToSymbol sscons
+z :: Term
+z       = ssToSymbol ssz
+s :: Term
+s       = ssToSymbol sss
+nz :: Term
+nz      = ssToSymbol ssNz
+nFilter :: Term
+nFilter = ssToSymbol ssFilter
+main :: Term
+main    = ssToSymbol ssMain
+sif :: Term
+sif     = ssToSymbol ssIf
+nS :: Term
+nS      = ssToSymbol ssS
+n :: Term
+n       = ssToSymbol ssN
+listN :: Term
+listN   = ssToSymbol ssListN
+zero :: Term
+zero    = ssToSymbol sszero
+one :: Term
+one     = ssToSymbol ssone
+kzero :: Term
+kzero   = ssToSymbol ssKZero
+kone :: Term
+kone    = ssToSymbol ssKOne
+map2 :: Term
+map2    = ssToSymbol ssMap2
+
+mkIf :: Term -> Term -> Term -> Term
+mkIf t1 t2 cond = app sif [t1,t2,cond]
+
+mkCons :: Term -> Term -> Term
+mkCons v rest = app cons [v,rest]
+
+mkFilter :: Term -> Term -> Term
+mkFilter predicate lst = app nFilter [predicate,lst]
+
+mkMap2 :: Term -> Term -> Term -> Term
+mkMap2 pred1 pred2 lst = app map2 [pred1, pred2 ,lst]
+
+mains :: Term
 mains = app main [nS]
 
 example2pmrs :: Monad m => m PMRS

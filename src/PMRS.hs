@@ -20,29 +20,21 @@ module PMRS
 --  )
 where
 
+import qualified Data.MultiMap as MM
+import Data.Set (Set)
+import qualified Data.Set as S
+import qualified Data.Map as M
+import Data.Maybe (isJust)
+import Control.Arrow (first)
+import Control.Monad (when, forM_)
+import Control.Monad.Writer (Writer, tell, execWriter)
+import Control.Exception (assert)
+
 import Aux
 import Term
 import Sorts
 import Data.List
 import CommonRS
-
-import Data.MultiMap (MultiMap)
-import qualified Data.MultiMap as MM
-
-import Data.Set (Set)
-import qualified Data.Set as S
-
-import Data.Map (Map)
-import qualified Data.Map as M
-
-import Data.Maybe
-import Control.Arrow
-import Control.Monad
-import Control.Monad.Writer
-
-import Control.Exception (assert)
-
-import Debug.Trace (trace)
 
 data PMRSRule = PMRSRule { pmrsRuleF :: Symbol
   , pmrsRuleVars :: [String]
