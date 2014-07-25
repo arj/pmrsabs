@@ -127,7 +127,7 @@ unmakePMRS :: PMRS -> (RankedAlphabet, RankedAlphabet, PMRSRules, Symbol)
 unmakePMRS (PMRS sigma n r s) = (sigma, n, r, s)
 
 mkPMRS :: Monad m => RankedAlphabet -> RankedAlphabet -> PMRSRules -> Symbol -> m PMRS
-mkPMRS t nt r s = do
+mkPMRS t nt r s = do -- TODO Check if rule for start symbol have arity 0
   let rules = concat $ MM.elems r
   forM_ rules $ \r' -> do
     let bnd = M.unions [t, nt, typeOfVariables r' nt]
@@ -138,11 +138,11 @@ mkPMRS t nt r s = do
       else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)
   return $ PMRS t nt r s
 
-cleanup :: PMRS -> PMRS
 -- | Removes rules if they are not used anywhere.
 -- Could be improved by doing a reachability analysis.
 -- At the moment two unused nonterminals can keep each
 -- other alive by referencing themselves.
+cleanup :: PMRS -> PMRS
 cleanup (PMRS sigma n r s) = PMRS sigma n r' s
   where
     nts = S.insert s $ S.unions $ map (getN . pmrsRuleBody) $ concat $ MM.elems r

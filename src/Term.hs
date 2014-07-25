@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, BangPatterns #-}
 
 module Term (
   Head(..), Term(..), TypeBinding, Var,
@@ -11,7 +11,9 @@ module Term (
   isNotContainingN,
 
   isMatching, isMatchingErr, runM, runIsMatching, pNtHead,
-  ntCut
+  ntCut,
+  trees, trees',
+  maxHeight
   ) where
 
 import Data.List
@@ -269,13 +271,32 @@ ntCut (App h      ts) = App h $ map ntCut ts
 ntCut (D d)           = D d
 ntCut (Case x ts)     = Case x $ map ntCut ts
 
--- |Creates the set of all terms createable from
--- the given ranked alphabet of height of at most n.
--- The underscore is used as variable.
-sigmaN :: Var -> RankedAlphabet -> Int -> Set Term
-sigmaN x _  0 = S.singleton $ var x
-sigmaN x ra n =
-  let terms = sigmaN x ra (n-1) in
-  -- TODO create terms from ra's symbols by
-  -- adding every combination of children from terms.
-  undefined
+terminalSigma :: Int -> RankedAlphabet -> [Term]
+terminalSigma n ra = map terminal $ M.keys $ sigma 0 ra
+
+-- | Creates all possible contexts from the ranked alphabet ra
+-- of height n.
+-- Careful if arity of terminal symbols in ra is larger than 1 this
+-- explodes rather fast (exponential!)
+trees' :: RankedAlphabet -> Int -> [Term]
+trees' _  0 = []
+trees' ra 1 = terminalSigma 0 ra
+  where
+trees' ra n = ctxts ++ terminalSigma 0 ra
+  where
+    ctxtsPred :: [Term]
+    ctxtsPred = trees' ra (n-1)
+    ctxts :: [Term]
+    ctxts = concat $ map enlargeCtxt tNot0
+    --
+    enlargeCtxt :: (Symbol, Sort) -> [Term]
+    enlargeCtxt (k,srt) = map (app (terminal k)) $ replicateM (ar srt) ctxtsPred
+    --
+    tNot0 = M.toList $ removeSigma0 ra
+
+trees :: RankedAlphabet -> Int -> Set Term
+trees ra n = S.fromList $ trees' ra n
+
+-- |Returns the maximal height of the trees listed.
+maxHeight :: [Term] -> Int
+maxHeight = maximum . map height

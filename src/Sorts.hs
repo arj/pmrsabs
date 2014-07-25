@@ -2,6 +2,7 @@ module Sorts (
   Sort(..), SortedSymbol(..), RankedAlphabet, Symbol,
   createSort,
   removeSigma0,
+  sigma,
   o, (~>),
   ar,
   sortToList, sortFromList,
@@ -25,16 +26,19 @@ data Sort = Base
           deriving (Eq,Ord)
 
 instance Show Sort where
-  show Base                     = "o"
-  show Data               = "d"
-  show (Arrow s1@Base s2)       = show s1 ++ " -> " ++ show s2
+  show Base = "o"
+  show Data = "d"
+  show (Arrow s1@Base s2) = show s1 ++ " -> " ++ show s2
   show (Arrow s1@Data s2) = show s1 ++ " -> " ++ show s2
-  show (Arrow s1 s2)            = "(" ++ show s1 ++ ") -> " ++ show s2
+  show (Arrow s1 s2)      = "(" ++ show s1 ++ ") -> " ++ show s2
 
 type RankedAlphabet = Map Symbol Sort
 
 removeSigma0 :: RankedAlphabet -> RankedAlphabet
 removeSigma0 = M.filter (\srt -> ar srt > 0)
+
+sigma :: Int -> RankedAlphabet -> RankedAlphabet
+sigma n = M.filter ((n ==) . ar)
 
 mkRankedAlphabet :: [SortedSymbol] -> RankedAlphabet
 mkRankedAlphabet = foldl f M.empty

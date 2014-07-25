@@ -16,8 +16,6 @@ import qualified Data.Set as S
 
 import qualified Data.MultiMap as MM
 
-import Control.Monad (replicateM)
-import Control.Monad.Reader
 import Debug.Trace (trace)
 import Text.Printf (printf)
 
@@ -43,9 +41,6 @@ patternDomain pmrs = S.fromList lst
     checkAndInsert ack (App (Var _) []) = ack
     checkAndInsert ack p'               = flip S.insert ack $ replaceVarsBy varsmb p'
 
-maxHeight :: Patterns -> Int
-maxHeight = maximum . map height . S.toList
-
 data DataMap = DataMap { dmErr  :: Term
                        , dmNum  :: Int -> Term
                        , dmCtxt :: Term -> Term
@@ -58,25 +53,6 @@ createCases wrapper dm intRes ctxtRes = [wrapper (dmErr dm)] ++ intcases ++ term
   where
     intcases  = map intRes [1..dmNumCount dm]
     termcases = map ctxtRes $ dmCtxts dm
-
--- | Creates all possible contexts from the ranked alphabet ra
--- up to height n.
--- Careful if arity of terminal symbols in ra is larger than 1 this
--- explodes rather fast (exponential!)
-contextsUpToHeight :: RankedAlphabet -> Int -> Set Term
-contextsUpToHeight _  0 = S.empty
-contextsUpToHeight ra 1 = S.map terminal sigma0
-  where
-    sigma0 = M.keysSet $ M.filter ((0 ==) . ar) ra
-contextsUpToHeight ra n = ctxtsPred `S.union` ctxts
-  where
-    ctxtsPred = contextsUpToHeight ra (n-1)
-    ctxts = S.unions $ map enlargeCtxt tNot0
-    --
-    enlargeCtxt :: (Symbol, Sort) -> Set Term
-    enlargeCtxt (k,srt) = S.fromList $ map (app (terminal k)) $ replicateM (ar srt) $ S.toList ctxtsPred
-    --
-    tNot0 = M.toList $ removeSigma0 ra
 
 data TransCfg = TransCfg
                  { tcPair :: String
@@ -93,6 +69,9 @@ data TransCfg = TransCfg
                  , tcErr  :: String
                  }
 
+-- | Creates a transformation configuration
+-- that consists of the non-clashing names of the
+-- new auxiliary (non)terminal symbols.
 createConfig :: PMRS -> TransCfg
 createConfig pmrs = cfg
   where
@@ -114,7 +93,6 @@ createConfig pmrs = cfg
                , tcErr  = freshVar terminals "err"
                }
 
-
 wPMRStoRSFD :: Monad m => PMRS -> m RSFD
 wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules $ tcS cfg
     where
@@ -133,13 +111,13 @@ wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules $ tcS cfg
       lift = RSFDRule (tcLift cfg) ["c", "f", "d"] (app (var "c") [var "d", var "f"])
       d    = RSFDRule (tcD cfg) ["d", "n", "c"] (app (var "c") [var "d"])
       terr = RSFDRule (tcTerr cfg) ["f"] (app (nonterminal $ tcPair cfg) [terminal $ tcErr cfg, (app (nonterminal $ tcD cfg) [derr]), var "f"])
-      s    = RSFDRule (tcS cfg) [] (app (nonterminal $ tcPi1 cfg) [nonterminal "S"]) -- $ getStartSymbol pmrs])
+      s    = RSFDRule (tcS cfg) [] (app (nonterminal $ tcPi1 cfg) [nonterminal $ "S"]) -- nonterminal $ getStartSymbol pmrs])
       --
-      contexts   = contextsUpToHeight terminals maxheight
+      contexts   = trees terminals maxheight
       --
       patterns   = patternDomain pmrs -- TODO Use contexts here!
       patternmap = zipWith (\p i -> (p,D i)) (S.toList patterns) [maxheight + 1..]
-      maxheight  = maxHeight patterns
+      maxheight  = maxHeight $ S.toList patterns
       --
       t  = M.insert (tcErr cfg) o $ getTerminals pmrs
       fix_nt = M.fromList [(tcPair cfg, o ~> tsetter ~> tpair)
@@ -279,11 +257,8 @@ createNTforT (k,srt)  = ra
               (stk ++ "_" ++ show i, tp)
     tkcase = (stk ++ "_case", sortFromList $ [tcont] ++ replicate n Data ++ [o])
 
-createParamList :: Int -> [String]
-createParamList n = zipWith pairUp (repeat "x") [1..n]
-  where
-    pairUp x i = x ++ show i
 
+-- TODO Move to configuration
 tk :: String -> String
 tk k = "HT_" ++ k
 
@@ -298,7 +273,7 @@ createRulesForT cfg dm (k,srt)  = rules
     conte = const (cont $ dmErr dm)
     --
     tk0     = RSFDRule stk (tk0xs ++ ["f"]) tk0body
-    tk0xs   = createParamList n
+    tk0xs   = createXs n
     tk0body = mkPair cfg tk0left tk0right (var "f")
     tk0left = app (terminal k) $ map (mkPi1 cfg . var) tk0xs
     tk0right = app (nonterminal (stk ++ "_1")) $ map var tk0xs
@@ -334,8 +309,16 @@ createRulesForT cfg dm (k,srt)  = rules
     tkcasexs   = ["c"] ++ map (\i -> "d" ++ show i) [1..n]
     tkcasebody = cont $ dmErr dm -- TODO Do real case distinction.
 
--- Not a functor!
+-- | Replaces every base sort with a pair sort.
+-- This is not a functor, as the following rule
+-- does not hold @fmap (p . q) = (fmap p) . (fmap q)@.
 homoemorphicExtensionToPair :: Sort -> Sort
 homoemorphicExtensionToPair Base = tpair
 homoemorphicExtensionToPair Data = Data
 homoemorphicExtensionToPair (Arrow s1 s2) = Arrow (homoemorphicExtensionToPair s1) (homoemorphicExtensionToPair s2)
+
+-- | Creates a list of numbered variables.
+createXs :: Int -> [String]
+createXs n = zipWith pairUp (repeat "x") [1..n]
+  where
+    pairUp x i = x ++ show i
