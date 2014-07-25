@@ -1,16 +1,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Preface where
+module Preface (
+	check,
+	version
+) where
 
-import Aux
-import PMRS
-import Term
-
--- import Control.Exception
+import Control.Exception (try, IOException)
 import Control.Concurrent (threadDelay)
 import System.IO
 import System.IO.Temp
 import System.Process (readProcess)
+import Text.Regex (mkRegex, matchRegex)
+
+import Aux
+import PMRS
+import Term
 
 data ATT = ATT
 
@@ -29,8 +33,8 @@ data Answer = Accepted
 
 -- | Calls Preface which checks whether the given ATT accepts
 -- the tree produced by the grammar and returns.
-preface :: PrefaceGrammar a => a -> ATT -> IO (Either IOError Answer)
-preface grammar att =
+check :: PrefaceGrammar a => a -> ATT -> IO (Either IOError Answer)
+check grammar att =
 	withSystemTempFile "preface.input" $ \path h -> do
 		hPutStr h input
 		hFlush h
@@ -40,3 +44,16 @@ preface grammar att =
 		return $ Right Accepted
   where
 		input = prettyPrint grammar ++ "\n" ++ prettyPrint att
+
+-- | Extract the preface version string.
+version :: FilePath -> IO (Maybe String)
+version preface = do
+	res <- try (readProcess preface ["-v"] "") :: IO (Either IOException String)
+	case res of
+		Left  _ -> return Nothing
+		Right s -> return $ extractVersion s
+	where
+		extractVersion :: String -> Maybe String
+		extractVersion s = do
+			x <- matchRegex (mkRegex "Version: ([0123456789]\\.[0123456789])") s
+			return $ head x

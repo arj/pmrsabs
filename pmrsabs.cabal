@@ -42,6 +42,7 @@ executable pmrsabs
                        MissingH,
                        parsec,
                        process,
-                       temporary
+                       temporary,
+                       regex-compat
   hs-source-dirs:      src
   default-language:    Haskell2010
