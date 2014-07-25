@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Preface (
+	ATT(..), Answer(..),
 	check,
 	version
 ) where
@@ -25,21 +26,21 @@ class PrettyPrint a => PrefaceGrammar a where
 
 instance PrefaceGrammar PMRS where
 
-prefacePath :: String
-prefacePath = "/home/jakobro/work/impl/PrefaceModelchecker/Preface/Preface/bin/Debug/Preface.exe"
+--prefacePath :: String
+--prefacePath = "/home/jakobro/work/impl/PrefaceModelchecker/Preface/Preface/bin/Debug/Preface.exe"
 
 data Answer = Accepted
             | Rejected Term
 
 -- | Calls Preface which checks whether the given ATT accepts
 -- the tree produced by the grammar and returns.
-check :: PrefaceGrammar a => a -> ATT -> IO (Either IOError Answer)
-check grammar att =
+check :: PrefaceGrammar a => FilePath -> a -> ATT -> IO (Either IOError Answer)
+check preface grammar att =
 	withSystemTempFile "preface.input" $ \path h -> do
 		hPutStr h input
 		hFlush h
 		--out <- catch (evaluate $ readProcess prefacePath [path] "") $ \(e :: IOError) -> Left e
-		_out <- readProcess prefacePath [path] ""
+		_out <- readProcess preface [path] ""
 		threadDelay 50000000
 		return $ Right Accepted
   where
@@ -52,8 +53,10 @@ version preface = do
 	case res of
 		Left  _ -> return Nothing
 		Right s -> return $ extractVersion s
-	where
-		extractVersion :: String -> Maybe String
-		extractVersion s = do
-			x <- matchRegex (mkRegex "Version: ([0123456789]\\.[0123456789])") s
-			return $ head x
+
+-- | Tries to extract a version string of the form "Version 1.0"
+-- from a given string.
+extractVersion :: String -> Maybe String
+extractVersion s = do
+	x <- matchRegex (mkRegex "Version: ([0123456789]\\.[0123456789])") s
+	return $ head x
