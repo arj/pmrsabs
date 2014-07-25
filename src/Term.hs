@@ -3,17 +3,15 @@
 module Term (
   Head(..), Term(..), TypeBinding, Var,
 
-  app, var, mkCase, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
+  app,var, mkCase, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
   fv, fv', subst, substAll, substTerminal, subterms, subterms', getN, replaceVarsBy,
-  typeCheck, caseVars, height, isTerminalHead, isNTHead, prefixTerms,
-  isUsingCase,
-  isUsingD,
-  isNotContainingN,
+  typeCheck, caseVars, height, maxHeight,
 
-  isMatching, isMatchingErr, runM, runIsMatching, pNtHead,
-  ntCut,
-  trees, trees',
-  maxHeight
+  isTerminalHead, isNTHead, prefixTerms,
+  isUsingCase, isUsingD, isNotContainingN,
+  isMatching, isMatchingErr,
+
+  runM, runIsMatching, pNtHead, ntCut, trees, trees'
   ) where
 
 import Data.List
@@ -44,8 +42,8 @@ headToTerm :: Head -> Term
 headToTerm h = App h []
 
 data Term = App Head [Term]
-            | Case String [Term] -- Only for RSFD
-            | D Int -- Only for RSFD
+          | Case String [Term] -- Only for RSFD
+          | D Int -- Only for RSFD
   deriving (Eq,Ord)
 
 instance Show Term where
@@ -88,11 +86,6 @@ symbol :: String -> Term
 symbol s@(c:_)
   | isUpper c = nonterminal s
   | isLower c = terminal s
-
---sortOf :: Head -> Maybe Sort
---sortOf (Var _)                 = Nothing
---sortOf (Nt (SortedSymbol _ s)) = Just s
---sortOf (T  (SortedSymbol _ s)) = Just s
 
 subterms :: Term -> Set Term
 subterms t@(App _ ts) = S.insert t $ S.unions $ map subterms ts
@@ -165,7 +158,6 @@ isNotContainingN t = S.null $ getN t
 
 ---------------------------------------------------------
 
-
 type TypeBinding = Map String Sort
 
 typeCheck :: Monad m => TypeBinding -> Term -> m Sort
@@ -214,6 +206,10 @@ height (App _ ts ) = succ $ maximum $ 0 : map height ts
 height (Case _ ts) = succ $ maximum $ 0 : map height ts
 height (D _      ) = 1
 
+-- | Returns the maximal height of the trees listed.
+maxHeight :: [Term] -> Int
+maxHeight = maximum . map height
+
 -- | Checks if a given pattern is matched by a term.
 -- The pattern may only consist of variables and terminal
 -- symbols. The term may only consist of terminal symbols.
@@ -226,7 +222,7 @@ isMatching (App (T f1 ) ts1) (App (T f2) ts2) =
       bnd <- mapM (uncurry isMatching) (zip ts1 ts2)
       return $ concat bnd
 isMatching (App (T   _) _ ) (App (Nt _) _)  = Nothing
-isMatching p t = error (show p ++ "/" ++ show t ++ " is no valid pattern") -- TODO Use ErrorT instead of Error!
+isMatching p t = error (show p ++ "/" ++ show t ++ " is no valid pattern") -- TODO Use ErrorT instead of error!
 
 ---------------------------------------------------------
 ---------------------------------------------------------
@@ -263,6 +259,11 @@ runIsMatching m = case runErrorT (runM m) of
                     (Just (Right r)) -> Right (Just r)
                     (Nothing)        -> Right Nothing
 
+---------------------------------------------------------------------
+---------------------------------------------------------------------
+---------------------------------------------------------------------
+
+-- | Replaces all nonterminals with a terminal _|_ (bottom).
 ntCut :: Term -> Term
 ntCut (App (Nt _) _ ) = terminal "_|_"
 ntCut (App h      ts) = App h $ map ntCut ts
@@ -297,7 +298,3 @@ trees' ra n = ctxts ++ terminalSigma 0 ra
 -- | Creates the set of trees from 
 trees :: RankedAlphabet -> Int -> Set Term
 trees ra n = S.fromList $ trees' ra n
-
--- | Returns the maximal height of the trees listed.
-maxHeight :: [Term] -> Int
-maxHeight = maximum . map height

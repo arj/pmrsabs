@@ -4,16 +4,13 @@ where
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as M
-import qualified Data.Set as S
 import qualified Data.MultiMap as MM
 import Control.Monad (forM_, when)
 import Control.Monad.Writer (Writer, tell, execWriter)
-import Data.Maybe (fromMaybe, fromJust)
 
 import Aux
 import Sorts
 import Term
-import PMRS (PMRS, getRules, PMRSRule(..), PMRSRules, unmakePMRS, filterRealPMRule, pIsPMRule, pIsPseudo)
 import CommonRS
 
 data RSFDRule = RSFDRule { rsfdRuleHead :: Symbol
@@ -102,107 +99,3 @@ prettyPrintRules s r = do
 
 instance PrettyPrint RSFD where
   prettyPrint rsfd = execWriter $ prettyPrintRSFD rsfd
-
--- Steps:
--- (0. Flatten pattern matching?)
---  1. Create finite data domain D from Sigma
---     We only need the terminal symbols that are actually
---     used in the pattern matching part of the symbols.
---  2. Transform all pattern matching rules to normal
---     rules with case statement. And combine
---     several rules into one, e.g.
---     Filter p nil -> t1 and Filter p (cons _ _) -> t2
---     must be combined to Filter p d -> case(d,t1,t2)
---  3. d must be of type d, thus we have to ensure that
---     the calls to filter only use elements of d.
---     Enforce this by an analysis and transformation.
---     We probably only need depth 1 as case cannot look deeper.
---  4. CPS transformation if necessary? We cannot return values
---     of type d!
-
-extractData :: PMRS -> Data
-extractData pmrs = M.fromList $ zip lst [0..]
-  where
-    rules   = concat $ MM.elems $ getRules pmrs
-    lst     = S.toList $ foldl extract S.empty rules
-    --
-    extract ack (PMRSRule _ _ p _) = maybe ack (checkAndInsert ack) p
-    --
-    -- We don't accept plain variable patterns as domains, as we do not
-    -- pattern match on anything here.
-    checkAndInsert ack (App (Var _) []) = ack
-    checkAndInsert ack p'               = flip S.insert ack $ replaceVarsBy "_" p'
-
-errStr :: String
-errStr = "err"
-
-errSymbol :: Term
-errSymbol = terminal errStr
-
--- | Transforms a given PMRS rule into an RSFD rule if it is a non-pm
--- rule or a pseudo pm rule, i.e. the pattern is a variable, see pIsPMRule.
-pmrsRuleToRSDFRule :: PMRSRule -> RSFDRule
-pmrsRuleToRSDFRule (PMRSRule f xs Nothing t)                 = RSFDRule f xs t
-pmrsRuleToRSDFRule (PMRSRule f xs (Just (App (Var px) _)) t) = RSFDRule f (xs ++ [px]) t
-pmrsRuleToRSDFRule _ = error "Pattern matching rules cannot be converted directly."
-
-extractPT :: Data -> PMRSRule -> (Int, Term)
-extractPT dd (PMRSRule _ _ (Just p) t) = (dataLookup p dd,t)
-
--- TODO t -> t' by replacing all
-transformRules :: PMRSRules -> Data -> RSFDRules
-transformRules rules dd = MM.unions [rsfdNormalRules, rsfdPmRules, rsfdPseudoPmRules]
-  where
-    -- Extract all groups of pattern matching rules
-    -- Now for all pattern matching rules
-    keys                     = MM.keys pmRules
-    (allPmRules,normalRules) = MM.partition pIsPMRule rules
-    (pseudoPmRules,pmRules)  = MM.partition pIsPseudo allPmRules
-    --
-    rsfdNormalRules          = MM.map pmrsRuleToRSDFRule normalRules
-    rsfdPseudoPmRules        = MM.map pmrsRuleToRSDFRule pseudoPmRules
-    rsfdPmRules              = mkRSFDRules $ map combineRulesPerKey keys
-    --
-    -- | For each nonterminal symbol (key) the corresponding pattern
-    -- matching rule is extracted and a RSFD rule is created that has
-    -- a case expression with the corresponding terms at the corresponding
-    -- positions, and err if the pattern is not checked for in this rule
-    combineRulesPerKey :: Symbol -> RSFDRule
-    combineRulesPerKey key = RSFDRule f (xs ++ ["_p"]) body
-      where
-        body = Case "_p" ts'
-        --
-        ts' = map placeTi [0..(M.size dd)-1]
-        --
-        placeTi :: Int -> Term
-        -- ^ Looks up the correct term for the pattern or returns err symbol.
-        placeTi idx = fromMaybe errSymbol $ lookup idx pIndexTs -- TODO Type conversion from /o/ to /d/ is still necessary!
-        --
-        headRule = head $ MM.lookup key pmRules
-        f        = pmrsRuleF headRule
-        xs       = pmrsRuleVars headRule
-        --
-        pIndexTs          = map (extractPT dd) $ MM.lookup key pmRules
-
-dataLookup :: Term -> Data -> Int
-dataLookup p dd = fromJust $ M.lookup p' dd
-  where
-    p' = replaceVarsBy "_" p
-
--- TODO Missing: Change type of pattern-matching
--- nonterminals from F: s -> ... -> o -> o to F: s -> ... -> d -> o!
-fromWPMRS :: Monad m => PMRS -> m RSFD
-fromWPMRS pmrs = mkRSFD sg' nt' dd rs' st
-  where
-    (sg,nt,rs,st) = unmakePMRS pmrs
-    --
-    sg' = M.insert errStr o sg
-    nt' = M.mapWithKey adjustSorts $ nt
-    dd  = extractData pmrs
-    rs' = transformRules rs dd
-    pmF = MM.keys $ filterRealPMRule rs
-    --
-    adjustSorts f srt =
-      if f `elem` pmF
-        then replaceLastArg Data srt
-        else srt -- No changes

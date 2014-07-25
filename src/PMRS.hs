@@ -176,6 +176,28 @@ prettyPrintRules s r = do
 instance PrettyPrint PMRS where
   prettyPrint pmrs = execWriter $ prettyPrintPMRS pmrs
 
+-- | Extracts all the patterns and replaces
+-- all variables with an underscore.
+patternDomain :: PMRS -> Set Term
+patternDomain pmrs = S.fromList lst
+  where
+    varsmb      = "_"
+    rules       = concat $ MM.elems $ getRules pmrs
+    patterns    = S.toList $ foldl extract S.empty rules
+    subpatterns = S.unions $ map subterms patterns
+    terminals   = S.fromList $ map createTerm $ M.toList $ getTerminals pmrs
+    terminalpt  = S.filter isTerminalHead subpatterns
+    lst         = S.toList $ S.union terminals terminalpt
+    --
+    createTerm (s,srt) = app (terminal s) $ replicate (ar srt) $ var varsmb
+    --
+    extract ack (PMRSRule _ _ p _) = maybe ack (checkAndInsert ack) p
+    --
+    -- We don't accept plain variable patterns as domains, as we do not
+    -- pattern match on anything here.
+    checkAndInsert ack (App (Var _) []) = ack
+    checkAndInsert ack p'               = flip S.insert ack $ replaceVarsBy varsmb p'
+
 --------------------------
 
 type Application = (Symbol,[Term])

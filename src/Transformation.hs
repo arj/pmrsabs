@@ -1,45 +1,15 @@
-{-# LANGUAGE BangPatterns #-}
 module Transformation where
+
+import Data.List
+import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.MultiMap as MM
 
 import Aux (uniqueList, freshVar)
 import RSFD
 import PMRS
 import Term
 import Sorts 
-
-import Data.List
-
-import qualified Data.Map as M
-
-import Data.Set (Set)
-import qualified Data.Set as S
-
-import qualified Data.MultiMap as MM
-
-import Debug.Trace (trace)
-import Text.Printf (printf)
-
-type Patterns = Set Term
-
-patternDomain :: PMRS -> Patterns
-patternDomain pmrs = S.fromList lst
-  where
-    varsmb      = "_"
-    rules       = concat $ MM.elems $ getRules pmrs
-    patterns    = S.toList $ foldl extract S.empty rules
-    subpatterns = S.unions $ map subterms patterns
-    terminals   = S.fromList $ map createTerm $ M.toList $ getTerminals pmrs
-    terminalpt  = S.filter isTerminalHead subpatterns
-    lst         = S.toList $ S.union terminals terminalpt
-    --
-    createTerm (s,srt) = app (terminal s) $ replicate (ar srt) $ var varsmb
-    --
-    extract ack (PMRSRule _ _ p _) = maybe ack (checkAndInsert ack) p
-    --
-    -- We don't accept plain variable patterns as domains, as we do not
-    -- pattern match on anything here.
-    checkAndInsert ack (App (Var _) []) = ack
-    checkAndInsert ack p'               = flip S.insert ack $ replaceVarsBy varsmb p'
 
 data DataMap = DataMap { dmErr  :: Term
                        , dmNum  :: Int -> Term
@@ -94,13 +64,10 @@ createConfig pmrs = cfg
                }
 
 wPMRStoRSFD :: Monad m => PMRS -> m RSFD
-wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules $ tcS cfg
+wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules $ tcS cfg
     where
       cfg = createConfig pmrs
-      debugInfo = printf "DEBUG\nPatterns = %s\n||P|| = %i\n|C| = %i"
-                  (show patternmap)
-                  (maxheight)
-                  (S.size contexts)
+      --
       pair = RSFDRule (tcPair cfg) ["x","y","f"] (app (var "f") [var "x", var "y"])
       k1   = RSFDRule (tcK1 cfg) ["n","c","x1","x2"] (var "x1")
       k2   = RSFDRule (tcK2 cfg) ["n","c","x1","x2"] (app (var "x2") [var "n", var "c"])
@@ -116,7 +83,6 @@ wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules $ tcS cfg
       contexts   = trees terminals maxheight
       --
       patterns   = patternDomain pmrs -- TODO Use contexts here!
-      patternmap = zipWith (\p i -> (p,D i)) (S.toList patterns) [maxheight + 1..]
       maxheight  = maxHeight $ S.toList patterns
       --
       t  = M.insert (tcErr cfg) o $ getTerminals pmrs
