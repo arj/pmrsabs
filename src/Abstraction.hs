@@ -11,6 +11,7 @@ where
 
 import Prelude hiding (pi)
 
+import Aux
 import PMRS hiding (step)
 import Term
 import Sorts
@@ -189,15 +190,19 @@ headToUpper (x:xs) = toUpper x : xs
 -- | Generates a weak PMRS from a start symbol (0-order HORS included into the PMRS),
 -- and a PMRS.
 wPMRS :: Monad m => Symbol -> PMRS -> m PMRS
-wPMRS gs pmrs = mkPMRS sigma nt' rs' s
+wPMRS gs pmrs = mkWPMRS sigma nt' rs' s'
   where
     sigma  = getTerminals pmrs
     nt     = getNonterminals pmrs
     rs     = getRules pmrs
     s      = getStartSymbol pmrs
-    nt'    = M.union nt $ mkRankedAlphabet $ S.toList instnt
-    rs'    = MM.union (weakPMrules rs) $ instrs
+    nt'    = M.unions [nt_s',nt,mkRankedAlphabet $ S.toList instnt]
+    rs'    = MM.insert s' start $ (weakPMrules rs) `MM.union` instrs
     bnd    = bindingAnalysis gs pmrs SM.empty
+    --
+    s'     = freshVar (M.keys nt) "S"
+    nt_s'  = M.singleton s' o
+    start  = PMRSRule s' [] Nothing $ app (nonterminal s) [nonterminal gs]
     --
     pmvars = getPMVariables pmrs
     --

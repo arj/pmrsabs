@@ -31,3 +31,10 @@ filterMap f (x:xs) = case f x of
 -- | Given a list returns a unique list
 uniqueList :: (Ord a) => [a] -> [a]
 uniqueList = S.toList . S.fromList
+
+-- | Creates a fresh variable name that is not
+-- in xs and has a prefix f.
+freshVar :: [String] -> String -> String
+freshVar xs f
+  | f `elem` xs = freshVar xs (f ++ "_")
+  | otherwise   = f

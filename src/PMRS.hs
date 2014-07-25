@@ -126,6 +126,12 @@ unmakePMRS :: PMRS -> (RankedAlphabet, RankedAlphabet, PMRSRules, Symbol)
 -- ^ Destructs a PMRS into terminals, nonterminals, rules and start symbol
 unmakePMRS (PMRS sigma n r s) = (sigma, n, r, s)
 
+mkWPMRS :: Monad m => RankedAlphabet -> RankedAlphabet -> PMRSRules -> Symbol -> m PMRS
+mkWPMRS t nt r s = do
+  let s_srt = nt M.! s
+  when (s_srt /= o) $ fail ("Start symbol " ++ show s ++ " has sort " ++ show s_srt ++ " but should have o")
+  mkPMRS t nt r s
+
 mkPMRS :: Monad m => RankedAlphabet -> RankedAlphabet -> PMRSRules -> Symbol -> m PMRS
 mkPMRS t nt r s = do -- TODO Check if rule for start symbol have arity 0
   let rules = concat $ MM.elems r

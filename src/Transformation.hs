@@ -1,7 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 module Transformation where
 
-import Aux (uniqueList)
+import Aux (uniqueList, freshVar)
 import RSFD
 import PMRS
 import Term
@@ -111,7 +111,7 @@ wPMRStoRSFD pmrs = trace debugInfo $ mkRSFD t nt M.empty rules $ tcS cfg
       lift = RSFDRule (tcLift cfg) ["c", "f", "d"] (app (var "c") [var "d", var "f"])
       d    = RSFDRule (tcD cfg) ["d", "n", "c"] (app (var "c") [var "d"])
       terr = RSFDRule (tcTerr cfg) ["f"] (app (nonterminal $ tcPair cfg) [terminal $ tcErr cfg, (app (nonterminal $ tcD cfg) [derr]), var "f"])
-      s    = RSFDRule (tcS cfg) [] (app (nonterminal $ tcPi1 cfg) [nonterminal $ "S"]) -- nonterminal $ getStartSymbol pmrs])
+      s    = RSFDRule (tcS cfg) [] (app (nonterminal $ tcPi1 cfg) [nonterminal $ getStartSymbol pmrs])
       --
       contexts   = trees terminals maxheight
       --
@@ -180,13 +180,6 @@ createCaseSort s = homoemorphicExtensionToPair s'
     res = last sortLst
     --
     s' = sortFromList $ xs ++ [Data, res]
-
--- | Creates a fresh variable name that is not
--- in xs and has a prefix f.
-freshVar :: [String] -> String -> String
-freshVar xs f
-  | f `elem` xs = freshVar xs (f ++ "_")
-  | otherwise   = f
 
 createNonPMRule :: RankedAlphabet -> PMRSRule -> RSFDRule
 createNonPMRule term (PMRSRule f xs Nothing body) = result
