@@ -58,5 +58,5 @@ version preface = do
 -- from a given string.
 extractVersion :: String -> Maybe String
 extractVersion s = do
-	x <- matchRegex (mkRegex "Version: ([0123456789]\\.[0123456789])") s
+	x <- matchRegex (mkRegex "Version: ([[:digit:]]\\.[[:digit:]])") s
 	return $ head x

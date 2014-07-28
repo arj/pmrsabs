@@ -52,8 +52,8 @@ typeOfVariables (PMRSRule f xs p _) ra = M.fromList alltypes
     types     = init $ sortToList srt
     xstypes   = zip xs types
 
+-- | Returns all variables used in pattern matching.
 getPMVariables :: PMRS -> Set String
--- ^ Returns all variables used in pattern matching.
 getPMVariables pmrs = S.unions $ map extractPMVars rules
   where
     extractPMVars (PMRSRule _ _ p _) = maybe S.empty fv p

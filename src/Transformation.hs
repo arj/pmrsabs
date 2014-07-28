@@ -4,6 +4,8 @@ import Data.List
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.MultiMap as MM
+import Data.Maybe (isJust)
+import Debug.Trace (trace)
 
 import Aux (uniqueList, freshVar)
 import RSFD
@@ -11,9 +13,10 @@ import PMRS
 import Term
 import Sorts 
 
-data DataMap = DataMap { dmErr  :: Term
-                       , dmNum  :: Int -> Term
-                       , dmCtxt :: Term -> Term
+data DataMap = DataMap { dmErr   :: Term
+                       , dmNum   :: Int -> Term
+                       , dmCtxt  :: Term -> Term
+                       , dmCtxti :: Term -> Term
                        , dmNumCount  :: Int
                        , dmCtxts :: [Term]
                        }
@@ -118,6 +121,9 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules $ tcS cfg
       -- contexts -> D n+1 ... D ||p||+n+1
       dctxt :: Term -> Term
       dctxt _ = D 6 -- TODO fix
+
+      dctxti :: Term -> Term
+      dctxti (D _) = derr
       --
       dnumber :: Int -> Term
       dnumber n = D n
@@ -125,7 +131,7 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules $ tcS cfg
       derr :: Term
       derr = D 0
       --
-      dm = DataMap derr dnumber dctxt maxheight $ S.toList contexts
+      dm = DataMap derr dnumber dctxt dctxti maxheight $ S.toList contexts
       --
       (pm, nonpm) = partition pIsPMRule $ concat $ MM.elems $ getRules pmrs
       --
@@ -145,17 +151,24 @@ createCaseSort s = homoemorphicExtensionToPair s'
     --
     s' = sortFromList $ xs ++ [Data, res]
 
+replaceTerminals :: RankedAlphabet -> Term -> Term
+replaceTerminals term t = t'
+  where
+    k_tk    = map (\k -> (k,terminal $ tk k)) $ M.keys term
+    t'   = foldr (\(k,k') b -> substTerminal k k' b) t k_tk
+
 createNonPMRule :: RankedAlphabet -> PMRSRule -> RSFDRule
-createNonPMRule term (PMRSRule f xs Nothing body) = result
+createNonPMRule terminals (PMRSRule f xs Nothing body) = result
   where
     h_f     = freshVar xs "f"
-    k_tk    = map (\k -> (k,terminal $ tk k)) $ M.keys term
-    body'   = app (foldr (\(k,k') b -> substTerminal k k' b) body k_tk) [var h_f]
+    --k_tk    = map (\k -> (k,terminal $ tk k)) $ M.keys term
+    --body'   = app (foldr (\(k,k') b -> substTerminal k k' b) body k_tk) [var h_f]
+    body'     = app (replaceTerminals terminals body) [var h_f]
     result  = RSFDRule f (xs ++ [h_f]) body'
 
 createPMrules :: TransCfg -> DataMap -> RankedAlphabet -> [PMRSRule] -> [RSFDRule]
 createPMrules _ _ _ [] = error $ "createPMRules may not be called for an empty list of rules."
-createPMrules cfg dm _term _rs@(PMRSRule g xs _ _ : _) = [baseRule, caseRule]
+createPMrules cfg dm term rs@(PMRSRule g xs _ _ : _) = [baseRule, caseRule]
   where
     y = freshVar xs "p"
     f = freshVar xs "f"
@@ -165,10 +178,27 @@ createPMrules cfg dm _term _rs@(PMRSRule g xs _ _ : _) = [baseRule, caseRule]
     g_case = g ++ "_case"
     mkFcase args = app (nonterminal g_case) $ map var args
     --
+    psts :: [(Term, Term)]
+    psts     = map (\(PMRSRule _ _ (Just p) t) -> (p,t)) rs
+    --
     caseRule = RSFDRule g_case (xs ++ [y,f]) caseBody
     caseBody = mkCase y $ cases
-    cases    = createCases fErr dm fErr fErr
+    cases    = createCases fErr dm fErr s
     fErr     = const $ mkTerr cfg $ var f
+    s t      = case patternMatching psts t of
+                 Just tj -> app (replaceTerminals term tj) [var f]
+                 Nothing -> mkTerr cfg $ var f
+
+-- | Returns a matching term from a list of terms.
+patternMatching :: [(Term,Term)] -> Term -> Maybe Term
+patternMatching psts t =
+  case matching of
+    (_,tj) : _ -> return tj
+    []         -> Nothing
+  where
+    matching :: [(Term, Term)]
+    matching = let x = filter (\(p,_) -> isJust $ isMatching p t) psts in
+               trace ("Patterns: " ++ show psts ++ "\nTerm: " ++ show t ++ "\nResult: " ++ show x) x
 
 tsetter :: Sort
 tsetter = Data ~> tcont ~> o
@@ -251,7 +281,7 @@ createRulesForT cfg dm (k,srt)  = rules
                    -- corresponds to arity 0)
                    in mkPi2 cfg (var "x1") m' body
     --
-    tki     = []
+    tki     = [] -- TODO
     --
     tkn     = if n == 1
               then []

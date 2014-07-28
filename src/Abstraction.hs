@@ -61,6 +61,7 @@ toBinding s = S.foldr f SM.empty s
     f ((App (Var x) []),p) ack = SM.insert x p ack
     f _ ack = ack
 
+-- | Convert a binding into a set of terms pairs.
 fromBinding :: Binding -> Set (Term, Term)
 fromBinding = S.fromList . map (first var) . SM.toList
 
