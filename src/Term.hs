@@ -213,6 +213,8 @@ maxHeight = maximum . map height
 -- | Checks if a given pattern is matched by a term.
 -- The pattern may only consist of variables and terminal
 -- symbols. The term may only consist of terminal symbols.
+-- Variables are expected to be unique. If they are not,
+-- variables might be mapped twice to different terms.
 isMatching :: Term -> Term -> Maybe [(String,Term)]
 isMatching (App (Var x) [] ) t                = return [(x,t)]
 isMatching (App (T f1 ) ts1) (App (T f2) ts2) =
