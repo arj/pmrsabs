@@ -298,6 +298,6 @@ trees' ra n = ctxts ++ trees' ra 1
     --
     tNot0 = M.toList $ removeSigma0 ra
 
--- | Creates the set of trees from 
+-- | Same as trees' but returns a set.
 trees :: RankedAlphabet -> Int -> Set Term
 trees ra n = S.fromList $ trees' ra n
