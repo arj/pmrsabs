@@ -5,7 +5,7 @@ module Term (
 
   app,var, mkCase, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
   fv, fv', subst, substAll, substTerminal, subterms, subterms', getN, replaceVarsBy,
-  typeCheck, caseVars, height, maxHeight, terminalSigma,
+  typeCheck, caseVars, height, maxHeight, heightCut, terminalSigma,
 
   isTerminalHead, isNTHead, prefixTerms,
   isUsingCase, isUsingD, isNotContainingN,
@@ -202,6 +202,7 @@ caseVars (Case x ts) = S.insert x $ S.unions $ map caseVars ts
 
 -- | /O(n)/ Returns the height of a term.
 height :: Term -> Int
+height (App (Var _) []) = 0
 height (App _ ts ) = succ $ maximum $ 0 : map height ts
 height (Case _ ts) = succ $ maximum $ 0 : map height ts
 height (D _      ) = 1
@@ -209,6 +210,14 @@ height (D _      ) = 1
 -- | Returns the maximal height of the trees listed.
 maxHeight :: [Term] -> Int
 maxHeight = maximum . map height
+
+-- | Cuts a given term at height n.
+-- For data values or case the function behaves
+-- like the id function.
+heightCut :: Int -> Term -> Term
+heightCut 0 _ = var "_"
+heightCut n (App t ts) = App t $ map (heightCut (n-1)) ts
+heightCut _ t = t
 
 -- | Checks if a given pattern is matched by a term.
 -- The pattern may only consist of variables and terminal
