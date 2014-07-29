@@ -5,7 +5,7 @@ module Term (
 
   app,var, mkCase, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
   fv, fv', subst, substAll, substTerminal, subterms, subterms', getN, replaceVarsBy,
-  typeCheck, caseVars, height, maxHeight,
+  typeCheck, caseVars, height, maxHeight, terminalSigma,
 
   isTerminalHead, isNTHead, prefixTerms,
   isUsingCase, isUsingD, isNotContainingN,
@@ -281,9 +281,10 @@ terminalSigma n ra = map terminal $ M.keys $ sigmaN n ra
 -- explodes rather fast (exponential!)
 trees' :: RankedAlphabet -> Int -> [Term]
 trees' _  0 = []
-trees' ra 1 = terminalSigma 0 ra
+trees' ra 1 = map createApp $ M.toList ra -- terminalSigma 0 ra
   where
-trees' ra n = ctxts ++ terminalSigma 0 ra
+    createApp (t,srt) = app (terminal t) $ replicate (ar srt) $ var "_"
+trees' ra n = ctxts ++ trees' ra 1
   where
     ctxtsPred :: [Term]
     ctxtsPred = trees' ra (n-1)

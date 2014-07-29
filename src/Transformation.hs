@@ -6,6 +6,7 @@ import qualified Data.Set as S
 import qualified Data.MultiMap as MM
 import Data.Maybe (isJust)
 import Debug.Trace (trace)
+import Text.Printf (printf)
 
 import Aux (uniqueList, freshVar)
 import RSFD
@@ -15,11 +16,32 @@ import Sorts
 
 data DataMap = DataMap { dmErr   :: Term
                        , dmNum   :: Int -> Term
-                       , dmCtxt  :: Term -> Term
-                       , dmCtxti :: Term -> Term
                        , dmNumCount  :: Int
                        , dmCtxts :: [Term]
                        }
+
+smalltestCtxt :: DataMap -> Term -> Term
+smalltestCtxt dm t = D $ snd $ head $ match
+  where
+    lbnd  = 1 + dmNumCount dm
+    ctxts = zip (dmCtxts dm) [lbnd..]
+    match = sortBy (heightCmp) $ filter (\(c,_) -> isJust $ isMatching c t) ctxts
+    heightCmp (a,_) (b,_) =
+      if height a > height b
+        then GT
+        else if height a == height b
+          then EQ
+          else LT
+
+
+instance Show DataMap where
+  show dm =
+    let err = show $ dmErr dm in
+    let num = dmNumCount dm in
+    let nums = intercalate ", " $ map (\i -> printf "%i:%i" i i) [1..num] in
+    let f i c = show i ++ ":" ++ show c in
+    let ctx = intercalate "," $ zipWith f [(num+1)..] $ (dmCtxts dm) in
+    printf "{%s:err, %s, %s}" err nums ctx
 
 createCases :: (Term -> Term) -> DataMap -> (Int -> Term) -> (Term -> Term) -> [Term]
 createCases wrapper dm intRes ctxtRes = [wrapper (dmErr dm)] ++ intcases ++ termcases
@@ -67,8 +89,12 @@ createConfig pmrs = cfg
                }
 
 wPMRStoRSFD :: Monad m => PMRS -> m RSFD
-wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules $ tcS cfg
+wPMRStoRSFD pmrs = doTrace $ mkRSFD t nt M.empty rules $ tcS cfg
     where
+      doTrace x =
+        if True
+        then trace ("Data map: " ++ show dm) $ x
+        else x
       cfg = createConfig pmrs
       --
       pair = RSFDRule (tcPair cfg) ["x","y","f"] (app (var "f") [var "x", var "y"])
@@ -119,11 +145,6 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules $ tcS cfg
       -- error -> D 0
       -- numbers up to n -> D 1 --> D n
       -- contexts -> D n+1 ... D ||p||+n+1
-      dctxt :: Term -> Term
-      dctxt _ = D 6 -- TODO fix
-
-      dctxti :: Term -> Term
-      dctxti (D _) = derr
       --
       dnumber :: Int -> Term
       dnumber n = D n
@@ -131,7 +152,7 @@ wPMRStoRSFD pmrs = mkRSFD t nt M.empty rules $ tcS cfg
       derr :: Term
       derr = D 0
       --
-      dm = DataMap derr dnumber dctxt dctxti maxheight $ S.toList contexts
+      dm = DataMap derr dnumber maxheight $ S.toList contexts
       --
       (pm, nonpm) = partition pIsPMRule $ concat $ MM.elems $ getRules pmrs
       --
@@ -185,7 +206,7 @@ createPMrules cfg dm term rs@(PMRSRule g xs _ _ : _) = [baseRule, caseRule]
     caseBody = mkCase y $ cases
     cases    = createCases fErr dm fErr s
     fErr     = const $ mkTerr cfg $ var f
-    s t      = case patternMatching psts t of
+    s c      = case patternMatching psts c of
                  Just tj -> app (replaceTerminals term tj) [var f]
                  Nothing -> mkTerr cfg $ var f
 
@@ -198,7 +219,8 @@ patternMatching psts t =
   where
     matching :: [(Term, Term)]
     matching = let x = filter (\(p,_) -> isJust $ isMatching p t) psts in
-               trace ("Patterns: " ++ show psts ++ "\nTerm: " ++ show t ++ "\nResult: " ++ show x) x
+               --trace ("Patterns: " ++ show psts ++ "\nTerm: " ++ show t ++ "\nResult: " ++ show x) x
+               x
 
 tsetter :: Sort
 tsetter = Data ~> tcont ~> o
@@ -250,7 +272,7 @@ tk :: String -> String
 tk k = "HT_" ++ k
 
 createRulesForT :: TransCfg -> DataMap -> (Symbol, Sort) -> [RSFDRule]
-createRulesForT cfg dm (k,Base) = return $ RSFDRule (tk k) ["f"] (mkPair cfg (sToSymbol k) (mkD cfg $ dmCtxt dm (terminal k)) (var "f"))
+createRulesForT cfg dm (k,Base) = return $ RSFDRule (tk k) ["f"] (mkPair cfg (sToSymbol k) (mkD cfg $ smalltestCtxt dm (terminal k)) (var "f"))
 createRulesForT cfg dm (k,srt)  = rules
   where
     rules = [tk0,tk1] ++ tki ++ tkn ++ [tkcase]
@@ -270,7 +292,7 @@ createRulesForT cfg dm (k,srt)  = rules
     tk1body = mkCase "m" $ createCases cont dm tk1numbers conte
     --
     tk1numbers :: Int -> Term
-    tk1numbers 1 = cont $ (dmCtxt dm) (terminal k)
+    tk1numbers 1 = cont $ (smalltestCtxt dm) (terminal k)
     tk1numbers m = let m' = dmNum dm (m-1) in
                    let x2_xn = map var $ tail tk0xs in
                    let body = if n == 1
