@@ -129,7 +129,7 @@ wPMRStoRSFD pmrs = doTrace $ mkRSFD t nt M.empty rules $ tcS cfg
       --
       contexts   = trees terminals maxheight
       --
-      patterns   = patternDomain pmrs -- TODO Use contexts here!
+      patterns   = patternDomain pmrs
       maxheight  = maxHeight $ S.toList patterns
       --
       t  = M.insert (tcErr cfg) o $ getTerminals pmrs
@@ -334,7 +334,7 @@ createRulesForT cfg dm (k,srt)  = rules
     --
     tkcase     = RSFDRule (stk ++ "_case") tkcasexs tkcasebody
     tkcasexs   = ["c"] ++ map (\i -> "d" ++ show i) [1..n]
-    tkcasebody = mkCase "d1" $ createCases cont dm tkcaseNum (tkcaseCtxt [2..n] []) -- TODO Do real case distinction.
+    tkcasebody = mkCase "d1" $ createCases cont dm tkcaseNum (tkcaseCtxt [2..n] [])
     --
     tkcaseNum _ = cont $ dmErr dm
     tkcaseCtxt [] done t = cont $ dctxt
