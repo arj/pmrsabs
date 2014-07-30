@@ -232,7 +232,8 @@ isMatching (App (T f1 ) ts1) (App (T f2) ts2) =
     else do
       bnd <- mapM (uncurry isMatching) (zip ts1 ts2)
       return $ concat bnd
-isMatching (App (T   _) _ ) (App (Nt _) _)  = Nothing
+isMatching (App (T   _) _ ) (App (Nt  _) _)  = Nothing
+isMatching (App (T   _) _ ) (App (Var _) _)  = Nothing
 isMatching p t = error (show p ++ "/" ++ show t ++ " is no valid pattern") -- TODO Use ErrorT instead of error!
 
 ---------------------------------------------------------
