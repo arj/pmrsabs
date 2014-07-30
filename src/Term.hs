@@ -49,7 +49,7 @@ data Term = App Head [Term]
 instance Show Term where
   show (App h []) = show h
   show (App h lst) = "(" ++ show h ++ " " ++ unwords (map show lst) ++ ")"
-  show (Case x ti) = "_case " ++ show (length ti) ++ " " ++ x ++ " " ++ unwords (map show ti)
+  show (Case x ti) = "(_case " ++ show (length ti) ++ " " ++ x ++ " " ++ unwords (map show ti) ++ ")"
   show (D i) = show i
 
 fv :: Term -> Set Var
