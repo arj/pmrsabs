@@ -20,19 +20,37 @@ data DataMap = DataMap { dmErr   :: Term
                        , dmCtxts :: [Term]
                        }
 
-smalltestCtxt :: DataMap -> Term -> Term
-smalltestCtxt dm t = D $ snd $ head $ match
+heightCmp :: (Term, a) -> (Term, a) -> Ordering
+heightCmp (a,_) (b,_) =
+  if height a > height b
+    then GT
+    else if height a == height b
+      then EQ
+      else LT
+
+matchingContexts :: DataMap -> Term -> [(Term, Int)]
+matchingContexts dm t = match
   where
     lbnd  = 1 + dmNumCount dm
     ctxts = zip (dmCtxts dm) [lbnd..]
-    match = sortBy (heightCmp) $ filter (\(c,_) -> isJust $ isMatching c t) ctxts
-    heightCmp (a,_) (b,_) =
-      if height a > height b
-        then GT
-        else if height a == height b
-          then EQ
-          else LT
+    match = filter (\(c,_) -> isJust $ isMatching c t) ctxts
 
+smalltestCtxt :: DataMap -> Term -> Term
+smalltestCtxt dm t = D $ snd $ head $ sortedCtxt
+  where
+    sortedCtxt = sortBy heightCmp $ matchingContexts dm t
+
+largestCtxt :: DataMap -> Term -> Term
+largestCtxt dm t = D $ snd $ head $ sortedCtxt
+  where
+    sortedCtxt = reverse $ sortBy heightCmp $ matchingContexts dm t
+
+-- | Returns the corresponding context to a data value
+-- within a data map.
+dvToCtxt :: DataMap -> Term -> Term
+dvToCtxt dm (D i) = (dmCtxts dm) !! idx
+  where
+    idx = i - 1 + dmNumCount dm
 
 instance Show DataMap where
   show dm =
@@ -316,7 +334,16 @@ createRulesForT cfg dm (k,srt)  = rules
     --
     tkcase     = RSFDRule (stk ++ "_case") tkcasexs tkcasebody
     tkcasexs   = ["c"] ++ map (\i -> "d" ++ show i) [1..n]
-    tkcasebody = cont $ dmErr dm -- TODO Do real case distinction.
+    tkcasebody = mkCase "d1" $ createCases cont dm tkcaseNum (tkcaseCtxt [2..n] []) -- TODO Do real case distinction.
+    --
+    tkcaseNum _ = cont $ dmErr dm
+    tkcaseCtxt [] done t = cont $ dctxt
+      where
+        ctxt     = app (terminal k) $ children
+        dctxt    = largestCtxt dm ctxt
+        children = reverse (t:done)
+    tkcaseCtxt (i:remaining) done t = mkCase ("d" ++ show i) $ createCases cont dm tkcaseNum (tkcaseCtxt remaining (t:done))-- cont $ dmErr dm
+
 
 -- | Replaces every base sort with a pair sort.
 -- This is not a functor, as the following rule
