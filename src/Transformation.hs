@@ -293,7 +293,7 @@ createRulesForT :: TransCfg -> DataMap -> (Symbol, Sort) -> [RSFDRule]
 createRulesForT cfg dm (k,Base) = return $ RSFDRule (tk k) ["f"] (mkPair cfg (sToSymbol k) (mkD cfg $ smalltestCtxt dm (terminal k)) (var "f"))
 createRulesForT cfg dm (k,srt)  = rules
   where
-    rules = [tk0,tk1] ++ tki ++ tkn ++ [tkcase]
+    rules = [tk0,tk1] ++ tkis ++ tkn ++ [tkcase]
     n     = ar srt
     stk   = tk k
     cont d = app (var "c") [d]
@@ -321,7 +321,13 @@ createRulesForT cfg dm (k,srt)  = rules
                    -- corresponds to arity 0)
                    in mkPi2 cfg (var "x1") m' body
     --
-    tki     = [] -- TODO
+    tkis      = map tki [2..(n-1)]
+    tki i     = RSFDRule (stk ++ "_" ++ show i) (tkixs i) (tkibody i)
+    tkixs i   = "m" : (createXsRange i n) ++ ["c"] ++ (createDRange 1 (i-1))
+    tkibody i = let tkip1 = (stk ++ "_" ++ show (i+1)) in
+                let args  = var "m" : (map var (createXsRange (i+1) n)) ++ [var "c"] ++ (map var (createDRange 1 (i-1))) in
+                let call  = app (nonterminal tkip1) args
+                in mkPi2 cfg (var ("x" ++ show i)) (var "m") call
     --
     tkn     = if n == 1
               then []
@@ -355,6 +361,17 @@ homoemorphicExtensionToPair (Arrow s1 s2) = Arrow (homoemorphicExtensionToPair s
 
 -- | Creates a list of numbered variables.
 createXs :: Int -> [String]
-createXs n = zipWith pairUp (repeat "x") [1..n]
+createXs n = createXsRange 1 n
+
+createXsRange :: Int -> Int -> [String]
+createXsRange = createVarRange "x"
+
+createDRange :: Int -> Int -> [String]
+createDRange = createVarRange "d"
+
+-- | Creates a list of numbered variables from
+-- within a range.
+createVarRange :: String -> Int -> Int -> [String]
+createVarRange v low up = zipWith pairUp (repeat v) [low..up]
   where
     pairUp x i = x ++ show i
