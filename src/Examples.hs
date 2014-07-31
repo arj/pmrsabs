@@ -270,4 +270,35 @@ exampleRmatch = do
     return $ rmatch rs t1 t2 bnd
   where
     
-    
+exampleDetWpmrs :: Monad m => m PMRS
+exampleDetWpmrs = mkPMRS sigma nonterminals r "S"
+  where
+    sigma :: RankedAlphabet
+    sigma = mkRankedAlphabet [sstrue
+                 ,ssfalse
+                 ,ssnil
+                 ,sscons
+                 ,ssz
+                 ,sss
+                 ]
+    nonterminals :: RankedAlphabet
+    nonterminals = mkRankedAlphabet [ssMain
+                                ,ssIf
+                                ,ssNz
+                                ,ssFilter
+                                ,ssS
+                                ,ssN
+                                ,ssListN]
+    r :: PMRSRules
+    r = listToRules [PMRSRule "Main" ["m"] Nothing $ app nFilter [nz, m]
+                   ,PMRSRule "If" ["a","b"] (Just true) $ a
+                   ,PMRSRule "If" ["a","b"] (Just false) $ b
+                   ,PMRSRule "Nz" [] (Just z) $ false
+                   ,PMRSRule "Nz" [] (Just $ app s [c]) $ true
+                   ,PMRSRule "Filter" ["p"] (Just nil) $ nil
+                   ,PMRSRule "Filter" ["p"] (Just $ mkCons x xs) $
+                        mkIf (mkCons n $ mkFilter p listN) (mkFilter p listN) (app p [n])
+                   ,PMRSRule "S" [] Nothing $ app main [listN]
+                   ,PMRSRule "N"  [] Nothing $ app s [z]
+                   ,PMRSRule "ListN"  [] Nothing $ mkCons n listN
+                   ]
