@@ -6,8 +6,9 @@ module Preface (
 	version
 ) where
 
-import Control.Exception (try, IOException)
-import Control.Concurrent (threadDelay)
+import Control.Exception (try, IOException, catch)
+-- import Control.Concurrent (threadDelay)
+import Control.Monad (liftM)
 import System.IO
 import System.IO.Temp
 import System.Process (readProcess)
@@ -15,34 +16,36 @@ import Text.Regex (mkRegex, matchRegex)
 
 import Aux
 import PMRS
+import RSFD
 import Term
 
 data ATT = ATT
 
 instance PrettyPrint ATT where
-	prettyPrint _ = "%BEGINA\nq0 a->.\n%ENDA\n"
+	prettyPrint _ = "%BEGINA\nq0 cons-> q1 q0.\nq1 s -> q2.\nq2 z ->.%ENDA\n"
 
 class PrettyPrint a => PrefaceGrammar a where
 
 instance PrefaceGrammar PMRS where
+instance PrefaceGrammar RSFD where
 
 --prefacePath :: String
 --prefacePath = "/home/jakobro/work/impl/PrefaceModelchecker/Preface/Preface/bin/Debug/Preface.exe"
+
+prefaceFileName :: String
+prefaceFileName = "Preface.exe"
 
 data Answer = Accepted
             | Rejected Term
 
 -- | Calls Preface which checks whether the given ATT accepts
 -- the tree produced by the grammar and returns.
-check :: PrefaceGrammar a => FilePath -> a -> ATT -> IO (Either IOError Answer)
-check preface grammar att =
+check :: PrefaceGrammar a => a -> ATT -> IO (Either IOError String)
+check grammar att =
 	withSystemTempFile "preface.input" $ \path h -> do
 		hPutStr h input
 		hFlush h
-		--out <- catch (evaluate $ readProcess prefacePath [path] "") $ \(e :: IOError) -> Left e
-		_out <- readProcess preface [path] ""
-		threadDelay 50000000
-		return $ Right Accepted
+		catch (liftM Right $ readProcess prefaceFileName [path] "") $ \(e :: IOError) -> return $ Left e
   where
 		input = prettyPrint grammar ++ "\n" ++ prettyPrint att
 
