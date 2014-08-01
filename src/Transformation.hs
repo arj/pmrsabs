@@ -110,7 +110,7 @@ wPMRStoRSFD :: Monad m => PMRS -> m RSFD
 wPMRStoRSFD pmrs = doTrace $ mkRSFD t nt M.empty rules $ tcS cfg
     where
       doTrace x =
-        if True
+        if False
         then trace ("Data map: " ++ show dm) $ x
         else x
       cfg = createConfig pmrs
