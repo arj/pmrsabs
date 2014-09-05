@@ -33,6 +33,7 @@ executable pmrsabs
                        RSFD,
                        Aux,
                        Preface,
+                       Automaton,
                        GenericRecursionScheme
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.7,
