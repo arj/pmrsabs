@@ -12,7 +12,7 @@ import Aux
 import Sorts
 
 type State = String
-type Delta = Map (Symbol, State) [State]
+type Delta = Map (State, Symbol) [State]
 
 data ATT = ATT Delta State
 
@@ -22,7 +22,7 @@ instance PrettyPrint ATT where
 showRules :: Delta -> String
 showRules delta = intercalate "\n" $ map f $ M.toList delta
   where
-  	f ((s,q),qs) = printf "%s %s -> %s." s q (showQs qs)
+  	f ((q,s),qs) = printf "%s %s -> %s." q s (showQs qs)
   	showQs qs = intercalate " " qs 
 
 -- | Extract the set of states used in the automaton
@@ -32,11 +32,11 @@ attStates (ATT delta state) = S.toList states
   	states = deltaStates `S.union` S.singleton state
   	deltaStates = foldl f S.empty $ M.toList delta
   	--
-  	f ack ((_,q),qs) = S.unions [S.fromList qs, S.singleton q, ack] 
+  	f ack ((q,_),qs) = S.unions [S.fromList qs, S.singleton q, ack] 
 
 instance Show ATT where
   show (ATT delta q0) =
-  	let (delta1, delta2) = M.partitionWithKey (\(_,q) _ -> q == q0) delta in
+  	let (delta1, delta2) = M.partitionWithKey (\(q,_) _ -> q == q0) delta in
   	let d1string = showRules delta1 in
   	let d2string = showRules delta2 in
   	case d2string of
@@ -46,13 +46,13 @@ instance Show ATT where
 -- | Given an ATT, a symbol and a state returns the next states
 -- of the automaton if there is a transition.
 attTransition :: ATT -> Symbol -> State -> Maybe [State]
-attTransition (ATT delta _) t q = M.lookup (t,q) delta
+attTransition (ATT delta _) t q = M.lookup (q,t) delta
 
 attAddBr :: Symbol -> ATT -> ATT
 attAddBr br (ATT delta q0) = ATT delta' q0
   where
     delta'  = delta `M.union` brDelta
-    brDelta = M.fromList $ map (\q -> ((br,q), [q,q])) qs
+    brDelta = M.fromList $ map (\q -> ((q,br), [q,q])) qs
     --
     qs = S.toList $ foldl f S.empty $ M.toList delta
-    f ack ((_,q),_) = S.insert q ack
+    f ack ((q,_),_) = S.insert q ack

@@ -7,7 +7,8 @@ module HORS (
   HORS(..),
   mkHORS,
   determinizeHORS,
-  findCEx
+  findCEx,
+  removeBrFromCEx
   ) where
 
 import Data.List
@@ -70,7 +71,7 @@ prettyPrintHORS (HORS _ _ r s) = do
   tell "\n"
 
 prettyPrintRule :: HORSRule => Writer String ()
-prettyPrintRule (HORSRule f xs body) = tell $ unwords $ filter (not . null) [show f, unwords xs, "=",show body]
+prettyPrintRule (HORSRule f xs body) = tell $ unwords $ filter (not . null) [f, unwords xs, "=",show body]
 
 prettyPrintRules :: Symbol -> HORSRules -> Writer String ()
 prettyPrintRules s r = do
@@ -111,6 +112,8 @@ determinizeHORS (HORS t nt rs s) = mkHORS t' nt (MM.fromMap res) s
 
 type Path = [(Symbol, Int)]
 
+type CEx = (Path, Symbol, State)
+
 -- | A configuration consists of the current term, state of the automaton and path
 -- in the tree (as an automaton may eat terminal heads!)
 data Config = Config Term State Path
@@ -125,15 +128,20 @@ initialCfg (HORS _ _ _ s) (ATT _ q0) = Config (nonterminal s) q0 []
 -- | Extracts a counterexample for a given deterministic HORS
 -- and automaton. This only works if there IS a counterexample.
 -- Otherwise this function DOES NOT TERMINATE.
-findCEx :: HORS -> ATT -> Path
+findCEx :: HORS -> ATT -> CEx
 findCEx hors att =
   funCExFix hors att [initialCfg hors att]
 
-funCExFix :: HORS -> ATT -> [Config] -> Path
+removeBrFromCEx :: Symbol -> CEx -> CEx
+removeBrFromCEx br (path,a,q) = (path',a,q)
+  where
+    path' = filter (\(s,_) -> s /= br) path
+
+funCExFix :: HORS -> ATT -> [Config] -> CEx
 funCExFix hors att cfgs =
   let result = fullStep hors att cfgs in
   case result of
-    Left path -> reverse path
+    Left (path,a,q) -> (reverse path, a, q)
     Right cfgs' -> funCExFix hors att cfgs'
 
 -- | One configuration step. Must be deterministic!
@@ -143,17 +151,17 @@ stepReduction h c@(Config t q p) =
     App (Nt n) ts -> Config (reduce h (n,ts)) q p
     _ -> c
 
-fullStep :: HORS -> ATT -> [Config] -> Either Path [Config]
+fullStep :: HORS -> ATT -> [Config] -> Either CEx [Config]
 fullStep hors att cfgs = fmap concat $ mapM f cfgs
   where
-    f :: Config -> Either Path [Config]
+    f :: Config -> Either CEx [Config]
     f cfg = stepAutomaton att $ stepReduction hors cfg
 
 -- | Given an automaton and a configuration returns
 -- a list of configurations that describe the automaton splits
 -- if the head symbol of the configuration is a terminal.
 -- (a t1 ... tn, q, p) --> [(t1, q1, p.1),...,(tn, qn, p.n)]
-stepAutomaton :: ATT -> Config -> Either Path [Config]
+stepAutomaton :: ATT -> Config -> Either CEx [Config]
 stepAutomaton att c@(Config t q p) =
   case t of
     -- is it a terminal head?
@@ -161,7 +169,7 @@ stepAutomaton att c@(Config t q p) =
       let maybeQs = attTransition att s q in
       case maybeQs of
         Just qs -> return $ zipWith3 (\ti qi i -> Config ti qi ((s,i) : p)) ts qs [1..]
-        Nothing -> Left p
+        Nothing -> Left (p, s, q)
     _ -> return $ [c]
 
 -- | Given a set of rules and a term of the form (F t1 ... tn)

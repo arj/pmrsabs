@@ -161,7 +161,7 @@ prettyPrintPMRS (PMRS _ _ r s) = do
   tell "\n"
 
 prettyPrintRule :: PMRSRule -> Writer String ()
-prettyPrintRule (PMRSRule f xs p body) = tell $ unwords $ filter (not . null) [show f, unwords xs, showMaybe p,"=",show body]
+prettyPrintRule (PMRSRule f xs p body) = tell $ unwords $ filter (not . null) [f, unwords xs, showMaybe p,"=",show body]
 
 prettyPrintRules :: Symbol -> PMRSRules -> Writer String ()
 prettyPrintRules s r = do

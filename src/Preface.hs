@@ -29,9 +29,11 @@ import System.IO.Temp
 import System.Process (readProcess)
 import Text.Regex (mkRegex, matchRegex)
 import qualified Data.Text as T
+import Debug.Trace (trace)
 
 import Aux
 import PMRS
+import HORS
 import RSFD
 import Term
 import Automaton
@@ -40,6 +42,7 @@ class PrettyPrint a => PrefaceGrammar a where
 
 instance PrefaceGrammar PMRS where
 instance PrefaceGrammar RSFD where
+instance PrefaceGrammar HORS where
 
 --prefacePath :: String
 --prefacePath = "/home/jakobro/work/impl/PrefaceModelchecker/Preface/Preface/bin/Debug/Preface.exe"
@@ -52,7 +55,7 @@ data Answer = Accepted
 check :: PrefaceGrammar a => FilePath -> a -> ATT -> IO (Either IOError PrefaceOutput)
 check prefaceDir grammar att =
   withSystemTempFile "preface.input" $ \path h -> do
-    hPutStr h input
+    trace input $ hPutStr h input
     hFlush h
     res <- catch (liftM Right $ readProcess prefaceDir ["--json", "--witness", "-c", path] "") $ \(e :: IOError) -> return $ Left e
     return $ fromJust <$> parsePrefaceOutput <$> res

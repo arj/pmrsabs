@@ -308,8 +308,8 @@ exampleDetWpmrs = mkPMRS sigma nonterminals r "S"
 
 att1 :: ATT
 att1 = ATT (M.fromList
-  [(("a","q0"),["q1","q2"])
-  ,(("cons","q0"),["q0","q1"])
+  [(("q0","a"),["q1","q2"])
+  ,(("q0","cons"),["q0","q1"])
   ]
   ) "q0"
 
