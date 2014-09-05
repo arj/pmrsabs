@@ -10,12 +10,15 @@ where
 import           Data.Set      (Set)
 import qualified Data.Set      as S
 import qualified Data.SetMap as SM
+import qualified Data.Map as M
 import           Control.Monad (liftM)
 
 import           Abstraction
 import           PMRS
+import HORS
 import           Sorts
 import           Term
+import Automaton
 
 
 example5 :: (Set Term, Set Term, Set Term)
@@ -302,3 +305,48 @@ exampleDetWpmrs = mkPMRS sigma nonterminals r "S"
                    ,PMRSRule "N"  [] Nothing $ app s [z]
                    ,PMRSRule "ListN"  [] Nothing $ mkCons n listN
                    ]
+
+att1 :: ATT
+att1 = ATT (M.fromList
+  [(("a","q0"),["q1","q2"])
+  ,(("cons","q0"),["q0","q1"])
+  ]
+  ) "q0"
+
+hors1 :: Monad m => m HORS
+hors1 = mkHORS sigma nonterminals r "S"
+  where
+    sigma :: RankedAlphabet
+    sigma = mkRankedAlphabet [sscons
+                 ,ssz
+                 ,sss
+                 ]
+    nonterminals :: RankedAlphabet
+    nonterminals = mkRankedAlphabet [ssS
+                                ,ssN
+                                ,ssListN]
+    r :: HORSRules
+    r = horsRules [HORSRule "S" [] $ listN
+                  ,HORSRule "N"  [] $ app s [z]
+                  ,HORSRule "ListN" [] $ mkCons n listN
+                  ]
+horsndet :: Monad m => m HORS
+horsndet = mkHORS sigma nonterminals r "S"
+  where
+    sigma :: RankedAlphabet
+    sigma = mkRankedAlphabet [sscons
+                 ,ssz
+                 ,sss
+                 ,ssnil
+                 ]
+    nonterminals :: RankedAlphabet
+    nonterminals = mkRankedAlphabet [ssS
+                                ,ssN
+                                ,ssListN]
+    r :: HORSRules
+    r = horsRules [HORSRule "S" [] $ listN
+                  ,HORSRule "N"  [] $ app s [n]
+                  ,HORSRule "N"  [] $ z
+                  ,HORSRule "ListN" [] $ mkCons n listN
+                  ,HORSRule "ListN" [] $ nil
+                  ]

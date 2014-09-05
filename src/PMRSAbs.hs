@@ -5,11 +5,15 @@ import System.TimeIt
 import System.Environment
 import Text.Printf (printf)
 
+import Data.Map (Map)
+import qualified Data.Map as M
+
 import           Abstraction ()
 import           Examples (exampleDetWpmrs)
 import           PMRS ()
 import           Sorts ()
 import           Term ()
+import Automaton
 import Options
 --import           PMRSParser
 import Preface as P
@@ -33,8 +37,8 @@ main = do
 	putStrLn $ printf " (%6.4fs)" rsfdTime
 
 	--
-	putStr $ "- Calling Preface"
-	(checkTime, result) <- timeItT $ check prefaceDir rsfd ATT
+	putStr $ "- Calling Preface"	
+	(checkTime, result) <- timeItT $ check prefaceDir rsfd (ATT M.empty "q0")
 	putStrLn $ printf " (%6.4fs)" checkTime
 	--
 	case result of

@@ -34,11 +34,7 @@ import Aux
 import PMRS
 import RSFD
 import Term
-
-data ATT = ATT
-
-instance PrettyPrint ATT where
-  prettyPrint _ = "%BEGINA\nq0 cons-> q1 q0.\nq1 s -> q2.\nq2 a ->.%ENDA\n"
+import Automaton
 
 class PrettyPrint a => PrefaceGrammar a where
 

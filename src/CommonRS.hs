@@ -14,4 +14,3 @@ matchingRules = flip MM.lookup
 matchingRulesByTerm :: Rules a -> Term -> [a]
 matchingRulesByTerm rs (App (Nt f) _) = MM.lookup f rs
 matchingRulesByTerm _  (App _ _) = []
-
