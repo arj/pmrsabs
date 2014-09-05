@@ -1,21 +1,28 @@
 {-# LANGUAGE TypeSynonymInstances,FlexibleInstances #-}
 module HORS where
 
+import Data.List
 import Control.Monad
 import Data.Maybe (isNothing)
 
 import qualified Data.Map as M
 import qualified Data.MultiMap as MM
+import Control.Monad (when, forM_)
+import Control.Monad.Writer (Writer, tell, execWriter)
 
 import Text.Printf (printf)
 
+import Aux
 import Term
 import Sorts
 import CommonRS
 import Automaton
 
 
-data HORSRule = HORSRule Symbol [String] Term
+data HORSRule = HORSRule { horsRuleF :: Symbol
+                         , horsRuleV :: [String]
+                         , horsRuleB :: Term
+                         }
 	deriving (Eq,Ord)
 
 type HORSRules = Rules HORSRule
@@ -41,6 +48,36 @@ mkHORS t nt rs s = do
       else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)
   when (not $ MM.member rs s) $ fail ("No rule for the start symbol: " ++ show s)
   return $ HORS t nt rs s
+
+instance Show HORS where
+  show (HORS t nt r s) =
+    let t'  = rankedAlphabetToSet t
+        nt' = rankedAlphabetToSet nt
+    in "<" ++ (intercalate ",\n" [showSet t',showSet nt',show $ concat $ MM.elems r,show s]) ++ ">"
+
+prettyPrintHORS :: HORS -> Writer String ()
+prettyPrintHORS (HORS _ _ r s) = do
+  tell "%BEGING"
+  tell "\n"
+  prettyPrintRules s r
+  tell "%ENDG"
+  tell "\n"
+
+prettyPrintRule :: HORSRule => Writer String ()
+prettyPrintRule (HORSRule f xs body) = tell $ unwords $ filter (not . null) [show f, unwords xs, "=",show body]
+
+prettyPrintRules :: Symbol -> HORSRules -> Writer String ()
+prettyPrintRules s r = do
+  -- Ensure that rules with the start symbol are at the beginning of the list.
+  let (startRules,otherRules) = partition (\rule -> s == horsRuleF rule) $ concat $ MM.elems r
+  let ruleList = startRules ++ otherRules
+  forM_ ruleList $ \currentRule -> do
+    prettyPrintRule currentRule
+    tell ".\n"
+  return ()
+
+instance PrettyPrint HORS where
+  prettyPrint hors = execWriter $ prettyPrintHORS hors
 
 brFold :: Symbol -> [Term] -> Term
 brFold br ts = foldl1 (\ack t -> app (terminal br) [t, ack]) ts
