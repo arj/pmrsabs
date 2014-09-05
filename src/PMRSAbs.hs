@@ -5,7 +5,6 @@ import System.TimeIt
 import System.Environment
 import Text.Printf (printf)
 
-import Data.Map (Map)
 import qualified Data.Map as M
 
 import           Abstraction ()

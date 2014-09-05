@@ -1,13 +1,19 @@
 {-# LANGUAGE TypeSynonymInstances,FlexibleInstances #-}
-module HORS where
+module HORS (
+
+  HORSRule(..),
+  HORSRules,
+  horsRules,
+  HORS(..),
+  mkHORS,
+  determinizeHORS,
+  findCEx
+  ) where
 
 import Data.List
 import Control.Monad
-import Data.Maybe (isNothing)
-
 import qualified Data.Map as M
 import qualified Data.MultiMap as MM
-import Control.Monad (when, forM_)
 import Control.Monad.Writer (Writer, tell, execWriter)
 
 import Text.Printf (printf)
