@@ -1,4 +1,4 @@
-import Control.Monad (when, forM_)
+import Control.Monad (when)
 import Data.Maybe (isNothing, fromJust)
 import Data.List (intercalate)
 import System.TimeIt
@@ -8,7 +8,7 @@ import Text.Printf (printf)
 import qualified Data.Map as M
 
 import           Abstraction ()
-import           Examples (exampleDetWpmrs,horsndet)
+import           Examples (horsndet)
 import           PMRS ()
 import           Sorts ()
 import           Term ()
@@ -18,7 +18,7 @@ import Options
 --import           PMRSParser
 import Preface as P
 import HORS ()
-import Transformation
+--import Transformation
 import GenericRecursionScheme ()
 
 
@@ -49,5 +49,5 @@ main = do
 			putStr "- Accepted: "
 			let res = problemResult e
 			print $ res
-			-- when (not res) $ putStr "- Certificate: " >> forM_ (problemCertificate e) print
-			when (not res) $ putStrLn ("- Counterexample: " ++ (show $ removeBrFromCEx "br__br" $ findCEx hors att))
+			(cexTime,cex) <- timeItT $ return $ removeBrFromCEx "br__br" $ findCEx hors att
+			when (not res) $ putStrLn (printf "- Counterexample (%6.4fs): %s" cexTime (show cex))
