@@ -47,3 +47,12 @@ instance Show ATT where
 -- of the automaton if there is a transition.
 attTransition :: ATT -> Symbol -> State -> Maybe [State]
 attTransition (ATT delta _) t q = M.lookup (t,q) delta
+
+attAddBr :: Symbol -> ATT -> ATT
+attAddBr br (ATT delta q0) = ATT delta' q0
+  where
+    delta'  = delta `M.union` brDelta
+    brDelta = M.fromList $ map (\q -> ((br,q), [q,q])) qs
+    --
+    qs = S.toList $ foldl f S.empty $ M.toList delta
+    f ack ((_,q),_) = S.insert q ack
