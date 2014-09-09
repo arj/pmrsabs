@@ -25,12 +25,13 @@ cabal-version:       >=1.10
 executable pmrsabs
   main-is:             PMRSAbs.hs
   other-modules:       PMRS,
-                       PMRSParser,
+                       Parser,
                        Abstraction,
                        Term,
                        Sorts,
                        Examples,
                        RSFD,
+                       HORS,
                        Aux,
                        Preface,
                        Automaton,

@@ -6,7 +6,9 @@ module HORS (
   horsRules,
   HORS(..),
   mkHORS,
+  mkUntypedHORS,
   determinizeHORS,
+  determinizeUntypedHORS,
   findCEx,
   removeBrFromCEx
   ) where
@@ -24,7 +26,6 @@ import Term
 import Sorts
 import CommonRS
 import Automaton
-
 
 data HORSRule = HORSRule { horsRuleF :: Symbol
                          , horsRuleV :: [String]
@@ -55,6 +56,9 @@ mkHORS t nt rs s = do
       else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)
   when (not $ MM.member rs s) $ fail ("No rule for the start symbol: " ++ show s)
   return $ HORS t nt rs s
+
+mkUntypedHORS :: HORSRules -> Symbol -> HORS
+mkUntypedHORS rs s = HORS M.empty M.empty rs s
 
 instance Show HORS where
   show (HORS t nt r s) =
@@ -108,6 +112,12 @@ determinizeHORS (HORS t nt rs s) = mkHORS t' nt (MM.fromMap res) s
   where
     br  = "br__br"
     t'  = M.insert br (o ~> o ~> o) t
+    res = M.map (\rules -> [det br rules]) $ MM.toMap rs
+
+determinizeUntypedHORS :: HORS -> HORS
+determinizeUntypedHORS (HORS _ _ rs s) = mkUntypedHORS (MM.fromMap res) s
+  where
+    br  = "br__br"
     res = M.map (\rules -> [det br rules]) $ MM.toMap rs
 
 type Path = [(Symbol, Int)]

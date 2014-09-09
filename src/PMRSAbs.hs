@@ -18,6 +18,7 @@ import Options
 --import           PMRSParser
 import Preface as P
 import HORS ()
+import Parser ()
 --import Transformation
 import GenericRecursionScheme ()
 

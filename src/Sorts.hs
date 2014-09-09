@@ -9,26 +9,32 @@ module Sorts (
   sortToList, sortFromList,
   mkRankedAlphabet, rankedAlphabetToSet,
   replaceLastArg,
+  unify, unify', unboundToBase,
+  substTB
   ) where
 
 import Data.Set (Set)
 import qualified Data.Set as S
-
 import Data.Map (Map)
 import qualified Data.Map as M
+import Control.Arrow (second)
+import Debug.Trace (trace)
 
 type Symbol = String
 
 data Sort = Base
           | Data
           | Arrow Sort Sort
+          | SVar Symbol
           deriving (Eq,Ord)
 
 instance Show Sort where
   show Base = "o"
   show Data = "d"
+  show (SVar x) = x
   show (Arrow s1@Base s2) = show s1 ++ " -> " ++ show s2
   show (Arrow s1@Data s2) = show s1 ++ " -> " ++ show s2
+  show (Arrow s1@(SVar _) s2) = show s1 ++ " -> " ++ show s2
   show (Arrow s1 s2)      = "(" ++ show s1 ++ ") -> " ++ show s2
 
 -- | Creates a basic sort of arity n.
@@ -58,6 +64,7 @@ ar (Arrow _ s) = 1 + ar s
 sortToList :: Sort -> [Sort]
 sortToList Base = [Base]
 sortToList Data = [Data]
+sortToList x@(SVar _) = [x]
 sortToList (Arrow s s2) = s : sortToList s2
 
 -- | Creates a sort from a list of sorts.
@@ -70,8 +77,10 @@ sortFromList = foldr1 Arrow
 replaceLastArg :: Sort -> Sort -> Sort
 replaceLastArg _ Data           = Data
 replaceLastArg _ Base           = Base
+replaceLastArg _ x@(SVar _)     = x
 replaceLastArg s (Arrow _ Base) = Arrow s Base
 replaceLastArg s (Arrow _ Data) = Arrow s Data
+replaceLastArg s (Arrow _ x@(SVar _)) = Arrow s x
 replaceLastArg s (Arrow s1 s2 ) = Arrow s1 (replaceLastArg s s2)
 
 data SortedSymbol = SortedSymbol
@@ -105,3 +114,62 @@ removeSigma0 = M.filter (\srt -> ar srt > 0)
 -- symbols of arity n.
 sigmaN :: Int -> RankedAlphabet -> RankedAlphabet
 sigmaN n = M.filter ((n ==) . ar)
+
+type SortConstraints = [(Sort, Sort)]
+
+type Substitution = [(Symbol,Sort)]
+
+fv :: Sort -> Set Symbol
+fv Base = S.empty
+fv Data = S.empty
+fv (SVar x) = S.singleton x
+fv (Arrow s1 s2) = fv s1 `S.union` fv s2
+
+subst :: Symbol -> Sort -> Sort -> Sort
+subst _ _ Base = Base
+subst _ _ Data = Data
+subst x s srt@(SVar y) = if x == y then s else srt
+subst x s (Arrow s1 s2) = Arrow (subst x s s1) (subst x s s2)
+
+substSC :: Symbol -> Sort -> SortConstraints -> SortConstraints
+substSC x s sc = map f sc
+  where
+    f (s1,s2) = (subst x s s1, subst x s s2)
+
+substS :: Symbol -> Sort -> Substitution -> Substitution
+substS x s sc = map f sc
+  where
+    f (s1,s2) = (s1, subst x s s2)
+
+substTB :: Substitution -> Substitution -> Substitution
+substTB sub tb = map (second f) tb
+  where
+    f :: Sort -> Sort
+    f srt = foldl (\ack (x,s) -> subst x s ack) srt sub
+
+unify :: SortConstraints -> Substitution
+unify tc = unboundToBase $ foldl (\ack (x,s) -> substS x s ack) res res
+  where
+    res = unify' tc
+
+unboundToBase :: Substitution -> Substitution
+unboundToBase s = map (second f) s
+  where
+    f (SVar _) = Base
+    f t = t
+
+unify' :: SortConstraints -> Substitution
+unify' [] = []
+unify' ((s1,s2):rest) =
+  if s1 == s2
+    then unify' rest
+    else
+      case (s1,s2) of
+        (Arrow t1 t2, Arrow t1' t2') -> unify' $ [(t1,t1'),(t2,t2')] ++ rest
+        (SVar x     , t            ) -> if x `S.member` fv t
+                                        then error "Not unifiable"
+                                        else (x,t) : (unify' $ substSC x t rest)
+        (t          , SVar x       ) -> if x `S.member` fv t
+                                        then error "Not unifiable"
+                                        else (x,t) : (unify' $ substSC x t rest)
+        (_          , _            ) -> error "Not unifiable"

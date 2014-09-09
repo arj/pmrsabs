@@ -1,17 +1,19 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, BangPatterns #-}
 
 module Term (
-  Head(..), Term(..), TypeBinding, Var,
+  Head(..), Term(..), TypeBinding, Var, TypeConstraints,
 
   app,var, mkCase, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
   fv, fv', subst, substAll, substTerminal, subterms, subterms', getN, replaceVarsBy,
-  typeCheck, caseVars, height, maxHeight, heightCut, terminalSigma,
+  typeCheck, caseVars, height, maxHeight, heightCut, terminalSigma, getT,
 
   isTerminalHead, isNTHead, prefixTerms,
   isUsingCase, isUsingD, isNotContainingN,
   isMatching, isMatchingErr,
 
-  runM, runIsMatching, pNtHead, ntCut, trees, trees'
+  runM, runIsMatching, pNtHead, ntCut, trees, trees',
+
+  bump
   ) where
 
 import Data.List
@@ -20,8 +22,13 @@ import Data.Char (isUpper, isLower)
 import qualified Data.Set as S
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.SetMap (SetMap)
+import qualified Data.SetMap as SM
+import Control.Applicative ((<$>))
 import Control.Monad
+import Control.Monad.State
 import Control.Monad.Error
+import Debug.Trace (trace)
 
 import Aux
 import Sorts
@@ -111,6 +118,10 @@ pNtHead _              = False
 getN :: Term -> Set Symbol
 getN (App (Nt a) ts) = S.insert a $ S.unions $ map getN ts
 getN (App _      ts) = S.unions $ map getN ts
+
+getT :: Term -> Set Symbol
+getT (App (T a) ts) = S.insert a $ S.unions $ map getT ts
+getT (App _      ts) = S.unions $ map getT ts
 
 isTerminalHead :: Term -> Bool
 isTerminalHead (App (T _) _) = True
@@ -311,3 +322,48 @@ trees' ra n = ctxts ++ trees' ra 1
 -- | Same as trees' but returns a set.
 trees :: RankedAlphabet -> Int -> Set Term
 trees ra n = S.fromList $ trees' ra n
+
+---
+
+--unify :: [(Symbol, Sort)] -> [(Symbol, Sort)]
+--unify m = trace (show m) s
+--where
+--s = foldl f [] m
+--f s' m' -> 
+
+type TypeConstraints = Set (Sort,Sort)
+
+applyS :: [(Symbol, Sort)] -> TypeBinding -> TypeBinding
+applyS m env = M.mapMaybe f env
+  where
+    f (SVar x) = x `lookup` m
+    f _ = Nothing
+
+type VarSupply m = State Int m
+
+bump :: State Int Int
+bump = do
+  x <- get
+  put (x+1)
+  return x
+
+--typeInference :: Term -> (TypeConstraint, Sort)
+--typeInference t = evalState (typeInference' t) 0
+
+--typeInference' :: Term -> VarSupply (TypeConstraint, Sort)
+--typeInference' (App h []) = do
+--  x <- show <$> bump
+--  let alpha = "a" ++ x
+--  return $ (SM.singleton (show h) (SVar alpha), SVar alpha)
+--typeInference' (App h ts) = do
+--  a1 <- show <$> bump
+--  a2 <- show <$> bump
+--  let aH = "a" ++ a1
+--  let aR = "a" ++ a2
+--  let alphaH = SVar aH
+--  let alphaRet = SVar aR
+--  (envTs, typeTs) <- unzip <$> mapM typeInference' ts
+--  let constraintsEnv = concat $ map SM.toList envTs
+--  let constraintApp  = (aH, sortFromList $ typeTs ++ [alphaRet])
+--  let env' = SM.fromList ((show h, alphaH) : constraintApp : constraintsEnv)
+--  return (env', alphaRet)
