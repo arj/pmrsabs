@@ -18,6 +18,7 @@ import Control.Monad
 import qualified Data.Map as M
 import qualified Data.MultiMap as MM
 import Control.Monad.Writer (Writer, tell, execWriter)
+import Debug.Trace (trace)
 
 import Text.Printf (printf)
 

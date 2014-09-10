@@ -12,43 +12,62 @@ import           Examples (horsndet)
 import           PMRS ()
 import           Sorts ()
 import           Term ()
-import HORS (determinizeHORS, findCEx, removeBrFromCEx)
+import HORS (determinizeUntypedHORS, findCEx, removeBrFromCEx)
 import Automaton
 import Options
 --import           PMRSParser
 import Preface as P
 import HORS ()
-import Parser ()
+import Parser (parseHORSATTfromFile)
 --import Transformation
 import GenericRecursionScheme ()
 
+putErr :: String -> IO ()
+putErr s = error $ "Error: " ++ s
+
+prefaceVersionCheck :: [Flag] -> IO ([Int], FilePath)
+prefaceVersionCheck flags = do
+  let prefaceDir = getPrefaceDir flags
+  x <- P.version prefaceDir
+  when (isNothing x) $ putErr "Preface.exe not found"
+  --
+  when (not $ versionCheck [1,3] (fromJust x)) $ putErr "Preface version of at least 1.3 required."
+  return (fromJust x, prefaceDir)
 
 main :: IO ()
 main = do
-	(args, _files) <- getArgs >>= pmrsabsOptions
-	let prefaceDir = getPrefaceDir args
-	putStrLn "PMRS Modelchecker Version 1.0"
-	x <- P.version prefaceDir
-	when (isNothing x) (error "Preface.exe not found")
-	putStrLn $ "- Preface version: " ++ (intercalate "." $ map show $ fromJust x)
-	when (not $ versionCheck [1,3] (fromJust x)) $ error "Preface version of at least 1.3 required."
-	--
-	putStr $   "- Determinizing HORS"
-	(horsTime, hors) <- timeItT $ horsndet >>= determinizeHORS
-	putStrLn $ printf " (%6.4fs)" horsTime
+  (flags, files) <- getArgs >>= pmrsabsOptions
+  let verbose s = when (isVerbose flags) $ putStrLn s
+  --
+  verbose "PMRS Modelchecker Version 1.0"
+  when (length files < 1) $ putErr "One filename expected."
+  --
+  (prefaceVersion, prefaceDir) <- prefaceVersionCheck flags
+  verbose $ "Preface version: " ++ (intercalate "." $ map show $ prefaceVersion)
+  --
 
-	--
-	putStr $ "- Calling Preface"	
-	let delta = M.fromList [(("q0", "cons"),["q1","q0"]),(("q0", "nil"),[]),{--(("q1","z"),[]),--}(("q1","s"),["q1"])]
-	let att = attAddBr "br__br" $ ATT delta "q0"
-	(checkTime, result) <- timeItT $ check prefaceDir hors att
-	putStrLn $ printf " (%6.4fs)" checkTime
-	--
-	case result of
-		Left e -> putStrLn $ "Error running Preface: " ++ show e
-		Right e -> do
-			putStr "- Accepted: "
-			let res = problemResult e
-			print $ res
-			(cexTime,cex) <- timeItT $ return $ removeBrFromCEx "br__br" $ findCEx hors att
-			when (not res) $ putStrLn (printf "- Counterexample (%6.4fs): %s" cexTime (show cex))
+  let file = head files
+  verbose $ "Parsing: " ++ file
+  --
+  res <- parseHORSATTfromFile file
+  case res of
+    Left e -> putErr $ "Error reading " ++ file ++ ": " ++ show e
+    Right (hors,att) -> do
+      verbose "Determinizing HORS"
+      (horsTime, dethors) <- timeItT $ return $ determinizeUntypedHORS hors
+      verbose $ printf " (%6.4fs)" horsTime
+
+      let detatt = attAddBr "br__br" att
+
+      verbose "Calling Preface"    
+      (checkTime, result) <- timeItT $ check prefaceDir dethors detatt
+      verbose $ printf " (%6.4fs)" checkTime
+
+      case result of
+        Left e -> putStrLn $ "Error running Preface: " ++ show e
+        Right e -> do
+          putStr "Accepted: "
+          let res = problemResult e
+          print $ res
+          (cexTime,cex) <- timeItT $ return $ removeBrFromCEx "br__br" $ findCEx hors att
+          when (not res) $ putStrLn (printf "Counterexample (%6.4fs): %s" cexTime (show cex))

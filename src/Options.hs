@@ -20,6 +20,11 @@ getPrefaceDir [] = "Preface.exe"
 getPrefaceDir (PrefaceDir dir:_) = dir
 getPrefaceDir (_:xs) = getPrefaceDir xs
 
+isVerbose :: [Flag] -> Bool
+isVerbose [] = False
+isVerbose (Verbose:_) = True
+isVerbose (_:t) = isVerbose t
+
 pmrsabsOptions :: [String] -> IO ([Flag], [String])
 pmrsabsOptions argv = 
       case getOpt Permute options argv of

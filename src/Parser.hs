@@ -13,6 +13,7 @@ import qualified Data.Set as S (toList, unions, insert)
 import qualified Data.SetMap as SM
 import Debug.Trace (trace)
 
+import Automaton (ATT,mkATT)
 import PMRS
 import HORS
 import Sorts (Symbol, o, Sort(..), sortFromList, substTB, unify)
@@ -20,6 +21,10 @@ import Term (Term(..), var, app, terminal, nonterminal, TypeBinding, TypeConstra
 
 data GenericRule = GRPMRS String [String] GenericTerm GenericTerm
                  | GRHORS String [String] GenericTerm
+
+isGRPMRS :: GenericRule -> Bool
+isGRPMRS (GRPMRS _ _ _ _) = True
+isGRPMRS (GRHORS _ _ _) = False
 
 instance Show GenericRule where
   show (GRPMRS f xs@(_:_) p t) = printf "%s %s |%s = %s" f (unwords xs) (show p) (show t)
@@ -108,17 +113,26 @@ horsFromGenericRules rules = mkUntypedHORS rs s
     rs = horsRules $ map transformRule rules
     transformRule (GRHORS f xs t) = HORSRule f xs $ genericTermToTerm xs t
 
+attFromGenericRules :: [(String,String,[String])] -> ATT
+attFromGenericRules rs = mkATT (M.fromList $ map f rs) q0
+  where
+    (q0,_,_) = head rs
+    f (q,a,qs) = ((q,a),qs)
+
+identifier :: GenParser Char st String
+identifier = many (alphaNum <|> char '_')
+
 nonterm :: GenParser Char st String
 nonterm = do
   f <- upper
-  r <- many alphaNum
+  r <- identifier
   spaces
   return $ f : r
 
 termOrvar :: GenParser Char st String
 termOrvar = do
   f <- lower
-  r <- many alphaNum
+  r <- identifier
   spaces
   return $ f : r
 
@@ -163,28 +177,56 @@ horsRule = do
   t <- term
   return $ GRHORS s xs t
 
-hors :: GenParser Char st [GenericRule]
-hors = do
+parseHors :: GenParser Char st HORS
+parseHors = do
   string "%BEGING"
   newline
   spaces
   r <- endBy1 (try horsRule) (char '.' >> newline >> spaces)
   string "%ENDG"
-  eof
-  --return $ horsFromGenericRules r
-  return r
+  return $ horsFromGenericRules r
 
 pmrs :: GenParser Char st [GenericRule]
 pmrs = do
-  string "%BEGINPMRS"
+  string "%BEGING"
   newline
   spaces
   r <- endBy1 (((try horsRule) <|> pmrsRule)) (char '.' >> newline >> spaces)
-  string "%ENDPMRS"
-  eof
-  --return $ pmrsFromGenericRules r
+  string "%ENDG"
   return r
 
+parseQ :: GenParser Char st String
+parseQ = do
+  q <- many1 alphaNum
+  spaces
+  return q
+
+attRule :: GenParser Char st (String, String, [String])
+attRule = do
+  q <- parseQ
+  a <- termOrvar
+  ruleSep
+  qs <- many parseQ
+  return (q,a,qs)
+
+parseAtt :: GenParser Char st ATT
+parseAtt = do
+  string "%BEGINA"
+  newline
+  spaces
+  r <- endBy1 (attRule) (char '.' >> newline >> spaces)
+  string "%ENDA"
+  return $ attFromGenericRules r
+
+parseHORSATT :: GenParser Char st (HORS, ATT)
+parseHORSATT = do
+  hors <- parseHors
+  spaces
+  att <- parseAtt
+  return (hors, att)
+
+parseHORSATTfromFile :: FilePath -> IO (Either ParseError (HORS,ATT))
+parseHORSATTfromFile file = parseFromFile parseHORSATT file
 
 --parsePMRS :: String -> Either ParseError PMRS
 --parsePMRS = parse pmrs "(unknown)"

@@ -16,6 +16,9 @@ type Delta = Map (State, Symbol) [State]
 
 data ATT = ATT Delta State
 
+mkATT :: Delta -> State -> ATT
+mkATT d q0 = ATT d q0
+
 instance PrettyPrint ATT where
   prettyPrint att = "%BEGINA\n" ++ show att ++ "\n%ENDA"
 

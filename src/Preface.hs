@@ -55,7 +55,7 @@ data Answer = Accepted
 check :: PrefaceGrammar a => FilePath -> a -> ATT -> IO (Either IOError PrefaceOutput)
 check prefaceDir grammar att =
   withSystemTempFile "preface.input" $ \path h -> do
-    trace input $ hPutStr h input
+    hPutStr h input
     hFlush h
     res <- catch (liftM Right $ readProcess prefaceDir ["--json", "--witness", "-c", path] "") $ \(e :: IOError) -> return $ Left e
     return $ fromJust <$> parsePrefaceOutput <$> res
