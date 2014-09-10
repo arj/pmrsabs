@@ -22,13 +22,9 @@ import Data.Char (isUpper, isLower)
 import qualified Data.Set as S
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.SetMap (SetMap)
-import qualified Data.SetMap as SM
-import Control.Applicative ((<$>))
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Error
-import Debug.Trace (trace)
 
 import Aux
 import Sorts
@@ -323,47 +319,10 @@ trees' ra n = ctxts ++ trees' ra 1
 trees :: RankedAlphabet -> Int -> Set Term
 trees ra n = S.fromList $ trees' ra n
 
----
-
---unify :: [(Symbol, Sort)] -> [(Symbol, Sort)]
---unify m = trace (show m) s
---where
---s = foldl f [] m
---f s' m' -> 
-
 type TypeConstraints = Set (Sort,Sort)
-
-applyS :: [(Symbol, Sort)] -> TypeBinding -> TypeBinding
-applyS m env = M.mapMaybe f env
-  where
-    f (SVar x) = x `lookup` m
-    f _ = Nothing
-
-type VarSupply m = State Int m
 
 bump :: State Int Int
 bump = do
   x <- get
   put (x+1)
   return x
-
---typeInference :: Term -> (TypeConstraint, Sort)
---typeInference t = evalState (typeInference' t) 0
-
---typeInference' :: Term -> VarSupply (TypeConstraint, Sort)
---typeInference' (App h []) = do
---  x <- show <$> bump
---  let alpha = "a" ++ x
---  return $ (SM.singleton (show h) (SVar alpha), SVar alpha)
---typeInference' (App h ts) = do
---  a1 <- show <$> bump
---  a2 <- show <$> bump
---  let aH = "a" ++ a1
---  let aR = "a" ++ a2
---  let alphaH = SVar aH
---  let alphaRet = SVar aR
---  (envTs, typeTs) <- unzip <$> mapM typeInference' ts
---  let constraintsEnv = concat $ map SM.toList envTs
---  let constraintApp  = (aH, sortFromList $ typeTs ++ [alphaRet])
---  let env' = SM.fromList ((show h, alphaH) : constraintApp : constraintsEnv)
---  return (env', alphaRet)

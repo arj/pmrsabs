@@ -29,7 +29,6 @@ import System.IO.Temp
 import System.Process (readProcess)
 import Text.Regex (mkRegex, matchRegex)
 import qualified Data.Text as T
-import Debug.Trace (trace)
 
 import Aux
 import PMRS

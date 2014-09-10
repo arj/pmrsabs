@@ -5,8 +5,6 @@ import System.TimeIt
 import System.Environment
 import Text.Printf (printf)
 
-import qualified Data.Map as M
-
 import           Abstraction ()
 import           PMRS ()
 import           Sorts ()
@@ -48,8 +46,8 @@ main = do
   let file = head files
   verbose $ "Parsing: " ++ file
   --
-  res <- parseHORSATTfromFile file
-  case res of
+  parseResult <- parseHORSATTfromFile file
+  case parseResult of
     Left e -> putErr $ "Error reading " ++ file ++ ": " ++ show e
     Right (hors,att) -> do
       verbose "Determinizing HORS"

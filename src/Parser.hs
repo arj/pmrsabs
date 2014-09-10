@@ -1,17 +1,13 @@
 module Parser where
 
-import Data.List (elem)
-import Control.Monad (liftM, forM)
 import Control.Monad.State
 import Control.Applicative ((<$>))
 import Text.ParserCombinators.Parsec hiding (State)
 import Text.Printf (printf)
 import Data.Char (isUpper)
 import Data.Map ((!))
-import qualified Data.Map as M (unions, insert, fromList, toList, empty, singleton, union)
+import qualified Data.Map as M (unions, fromList, toList)
 import qualified Data.Set as S (toList, unions, insert)
-import qualified Data.SetMap as SM
-import Debug.Trace (trace)
 
 import Automaton (ATT,mkATT)
 import PMRS
