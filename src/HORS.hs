@@ -191,7 +191,7 @@ reduce (HORS _ _ rs _) (s,ts) =
   case matchingRules rs s of
     [r] -> applyRule ts r
     []  -> error "Error in HORS: no reduction possible"
-    _   -> error "Nondeterministic HORS"
+    _   -> error $ printf "Nondeterministic HORS! reducing %s with %s" (show (s,ts)) (show rs)
 
 -- | Given a rule and a list of arguments
 -- applies the rule.

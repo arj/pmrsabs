@@ -1,0 +1,13 @@
+%BEGING
+  S -> ListN.
+  ListN -> nil.
+  ListN -> cons N ListN.
+  N -> z.
+  N -> s N.
+%ENDG
+
+%BEGINA
+  q0 nil ->.
+  q0 cons -> q1 q0.
+  q1 s -> q1.
+%ENDA

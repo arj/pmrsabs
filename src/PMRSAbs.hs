@@ -8,7 +8,6 @@ import Text.Printf (printf)
 import qualified Data.Map as M
 
 import           Abstraction ()
-import           Examples (horsndet)
 import           PMRS ()
 import           Sorts ()
 import           Term ()
@@ -69,5 +68,5 @@ main = do
           putStr "Accepted: "
           let res = problemResult e
           print $ res
-          (cexTime,cex) <- timeItT $ return $ removeBrFromCEx "br__br" $ findCEx hors att
+          (cexTime,cex) <- timeItT $ return $ removeBrFromCEx "br__br" $ findCEx dethors detatt
           when (not res) $ putStrLn (printf "Counterexample (%6.4fs): %s" cexTime (show cex))
