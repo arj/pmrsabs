@@ -1,10 +1,10 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, BangPatterns #-}
 
 module Term (
-  Head(..), Term(..), TypeBinding, Var, TypeConstraints,
+  Head(..), Term(..), TypeBinding, Var, TypeConstraints, Path,
 
   app,var, mkCase, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
-  fv, fv', subst, substAll, substTerminal, subterms, subterms', getN, replaceVarsBy,
+  fv, fv', subst, substAll, substTerminal, substTerminals, subterms, subterms', getN, replaceVarsBy,
   typeCheck, caseVars, height, maxHeight, heightCut, terminalSigma, getT,
 
   isTerminalHead, isNTHead, prefixTerms,
@@ -13,7 +13,9 @@ module Term (
 
   runM, runIsMatching, pNtHead, ntCut, trees, trees',
 
-  bump
+  bump,
+
+  lookupTerm
   ) where
 
 import Data.List
@@ -25,9 +27,12 @@ import qualified Data.Map as M
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Error
+import Control.Applicative
 
 import Aux
 import Sorts
+
+type Path = [Int]
 
 type Var = String
 
@@ -147,6 +152,12 @@ substTerminal k tk (App h@(T k') ts)
   | otherwise = App h $ map (substTerminal k tk) ts
 substTerminal k tk (App h ts) = App h $ map (substTerminal k tk) ts
 
+-- |Substitutes all terminal symbols according to a mapping
+-- function.
+substTerminals :: (Symbol -> Head) -> Term -> Term
+substTerminals m (App (T k) ts) = App (m k) $ map (substTerminals m) ts
+substTerminals m (App h     ts) = App h $ map (substTerminals m) ts
+
 -- | Checks whether the term contains a case expression.
 isUsingCase :: Term -> Bool
 isUsingCase (App _ ts) = any isUsingCase ts
@@ -257,7 +268,7 @@ instance Error MatchingError where
 
 newtype Matcher a = M {
   runM :: ErrorT MatchingError Maybe a
-} deriving (Monad, MonadError MatchingError)
+} deriving (Applicative, Functor, Monad, MonadError MatchingError)
 
 -- | Checks if a given pattern is matched by a term.
 -- The pattern may only consist of variables and terminal
@@ -326,3 +337,7 @@ bump = do
   x <- get
   put (x+1)
   return x
+
+lookupTerm :: Path -> Term -> Maybe Term
+lookupTerm [] t = return t
+lookupTerm (i:r) (App _ ts) = lookupTerm r =<< lookupList ts i

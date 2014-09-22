@@ -38,3 +38,9 @@ freshVar :: [String] -> String -> String
 freshVar xs f
   | f `elem` xs = freshVar xs (f ++ "_")
   | otherwise   = f
+
+lookupList :: [a] -> Int -> Maybe a
+lookupList _  n | n<0 = Nothing
+lookupList [] _ = Nothing
+lookupList (x:_) 0 = return x
+lookupList (_:xs) n = lookupList xs (n-1)

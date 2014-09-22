@@ -15,8 +15,9 @@ import Options
 --import           PMRSParser
 import Preface as P
 import HORS ()
-import WPMRSTransformer
+import WPMRSTransformer ()
 import Parser (parseHORSATTfromFile)
+import CARTA ()
 --import Transformation
 import GenericRecursionScheme ()
 

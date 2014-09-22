@@ -22,7 +22,7 @@ import Control.Monad.Writer (Writer, tell, execWriter)
 import Text.Printf (printf)
 
 import Aux
-import Term
+import Term (Head(..), Term(..), typeCheck, app, terminal, var, substAll, nonterminal)
 import Sorts
 import CommonRS
 import Automaton
@@ -74,7 +74,7 @@ prettyPrintHORS (HORS _ _ r s) = do
   tell "%ENDG"
   tell "\n"
 
-prettyPrintRule :: HORSRule => Writer String ()
+prettyPrintRule :: HORSRule -> Writer String ()
 prettyPrintRule (HORSRule f xs body) = tell $ unwords $ filter (not . null) [f, unwords xs, "=",show body]
 
 prettyPrintRules :: Symbol -> HORSRules -> Writer String ()

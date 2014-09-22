@@ -84,7 +84,7 @@ prettyPrintRSFD (RSFD _ _ _ r s) = do
   tell "%ENDG"
   tell "\n"
 
-prettyPrintRule :: RSFDRule => Writer String ()
+prettyPrintRule :: RSFDRule -> Writer String ()
 prettyPrintRule (RSFDRule f xs body) = tell $ unwords $ filter (not . null) [f, unwords xs, "=",show body]
 
 prettyPrintRules :: Symbol -> RSFDRules -> Writer String ()
