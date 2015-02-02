@@ -4,6 +4,7 @@ import System.Console.GetOpt
 
 data Flag 
     = Verbose
+    | DoExistential
     | Version 
     | PrefaceDir String
     deriving Show
@@ -12,6 +13,7 @@ options :: [OptDescr Flag]
 options =
     [ Option ['v']     ["verbose"] (NoArg Verbose)       "print more information"
     , Option ['V','?'] ["version"] (NoArg Version)       "show version number"
+    , Option ['e'] ["existential"] (NoArg DoExistential)       "Property holds if true for some trees of the language"
     , Option []     ["preface"]  (ReqArg PrefaceDir "DIR")   "Location of Preface"
     ]
 
@@ -24,6 +26,11 @@ isVerbose :: [Flag] -> Bool
 isVerbose [] = False
 isVerbose (Verbose:_) = True
 isVerbose (_:t) = isVerbose t
+
+isExistential :: [Flag] -> Bool
+isExistential [] = False
+isExistential (DoExistential:_) = True
+isExistential (_:t) = isExistential t
 
 pmrsabsOptions :: [String] -> IO ([Flag], [String])
 pmrsabsOptions argv = 

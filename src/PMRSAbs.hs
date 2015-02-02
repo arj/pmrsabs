@@ -36,6 +36,7 @@ prefaceVersionCheck flags = do
 main :: IO ()
 main = do
   (flags, files) <- getArgs >>= pmrsabsOptions
+  let existential = isExistential flags
   let verbose s = when (isVerbose flags) $ putStrLn s
   --
   verbose "PMRS Modelchecker Version 1.0"
@@ -44,7 +45,6 @@ main = do
   (prefaceVersion, prefaceDir) <- prefaceVersionCheck flags
   verbose $ "Preface version: " ++ (intercalate "." $ map show $ prefaceVersion)
   --
-
   let file = head files
   verbose $ "Parsing: " ++ file
   --
@@ -56,7 +56,8 @@ main = do
       (horsTime, dethors) <- timeItT $ return $ determinizeUntypedHORS hors
       verbose $ printf " (%6.4fs)" horsTime
 
-      let detatt = attAddBr "br__br" att
+      let quantifier = if existential then Existential else Universal
+      let detatt = attAddBr quantifier "br__br" att
 
       verbose "Calling Preface"    
       (checkTime, result) <- timeItT $ check prefaceDir dethors detatt

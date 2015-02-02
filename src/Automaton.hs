@@ -51,11 +51,19 @@ instance Show ATT where
 attTransition :: ATT -> Symbol -> State -> Maybe [State]
 attTransition (ATT delta _) t q = M.lookup (q,t) delta
 
-attAddBr :: Symbol -> ATT -> ATT
-attAddBr br (ATT delta q0) = ATT delta' q0
+data Quantifier = Existential
+                | Universal
+
+attAddBr :: Quantifier -> Symbol -> ATT -> ATT
+attAddBr quantifier br (ATT delta q0) = ATT delta' q0
   where
     delta'  = delta `M.union` brDelta
-    brDelta = M.fromList $ map (\q -> ((q,br), [q,q])) qs
+    brDelta = M.fromList $ map addBr qs
+    --
+    addBr :: State -> ((State, Symbol), [State])
+    addBr q = case quantifier of
+      Universal -> ((q,br), [q,q])
+      Existential -> undefined
     --
     qs = S.toList $ foldl f S.empty $ M.toList delta
     f ack ((q,_),_) = S.insert q ack

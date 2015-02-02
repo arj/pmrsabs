@@ -36,7 +36,9 @@ executable pmrsabs
                        Preface,
                        Automaton,
                        GenericRecursionScheme,
-                       WPMRSTransformer
+                       WPMRSTransformer,
+                       BindingAnalysis,
+                       SetConstraints
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.8,
                        containers >=0.5 && <0.6,
