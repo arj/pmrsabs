@@ -176,11 +176,21 @@ stepAutomaton att c@(Config t q p) =
   case t of
     -- is it a terminal head?
     App (T s) ts ->
-      let maybeQs = attTransition att s q in
-      case maybeQs of
-        Just qs -> return $ zipWith3 (\ti qi i -> Config ti qi ((s,i) : p)) ts qs [1..]
-        Nothing -> Left (p, s, q)
+      let qss = attTransition att s q in
+      case qss of
+        [] -> Left (p, s, q) -- No possibility to proceed with the current symbol.
+        _ -> return $ concat $ map (\qs -> stepAutomatonInner p qs s ts) qss
     _ -> return $ [c]
+
+-- | Given a path of the already established run, a list of states
+-- of the RHS of the automaton, a terminal symbol string, and a list
+-- of terms that the automaton proceeds with.
+stepAutomatonInner :: Path -> [(Int, State)] -> String -> [Term] -> [Config]
+stepAutomatonInner p qs s ts = map intStatePairToCfg qs
+  where
+    intStatePairToCfg (i,qi) =
+      let ti = ts !! i in
+      Config ti qi ((s,i) : p)
 
 -- | Given a set of rules and a term of the form (F t1 ... tn)
 -- the function returns the set of terms that it can be reduced to.

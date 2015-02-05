@@ -1,13 +1,17 @@
 module Parser where
 
 import Control.Monad.State
+import Control.Arrow (first)
 import Control.Applicative ((<$>))
 import Text.ParserCombinators.Parsec hiding (State)
 import Text.Printf (printf)
 import Data.Char (isUpper)
 import Data.Map ((!))
 import qualified Data.Map as M (unions, fromList, toList)
-import qualified Data.Set as S (toList, unions, insert)
+import Data.MultiMap (MultiMap)
+import qualified Data.MultiMap as MM
+import Data.Set (Set)
+import qualified Data.Set as S (toList, unions, insert, fromList)
 
 import Automaton (ATT,mkATT)
 import PMRS
@@ -109,11 +113,16 @@ horsFromGenericRules rules = mkUntypedHORS rs s
     rs = horsRules $ map transformRule rules
     transformRule (GRHORS f xs t) = HORSRule f xs $ genericTermToTerm xs t
 
-attFromGenericRules :: [(String,String,[String])] -> ATT
-attFromGenericRules rs = mkATT (M.fromList $ map f rs) q0
+attFromGenericRules :: [(String,String,[(Int, String)])] -> ATT
+attFromGenericRules rs = mkATT delta q0
   where
     (q0,_,_) = head rs
-    f (q,a,qs) = ((q,a),qs)
+    --
+    delta :: MultiMap (String, String) (Set (Int, String))
+    delta = MM.fromList $ map f rs
+    --
+    f :: (String, String, [(Int, String)]) -> ((String, String), Set (Int,String))
+    f (q,a,qs) = ((q,a),S.fromList qs)
 
 identifier :: GenParser Char st String
 identifier = many (alphaNum <|> char '_')
@@ -197,13 +206,25 @@ parseQ = do
   spaces
   return q
 
-attRule :: GenParser Char st (String, String, [String])
+parseIntQ :: GenParser Char st (String, String)
+parseIntQ = do
+  iq <- between (char '(' >> spaces) (char ')' >> spaces) $ do
+    i <- many1 digit
+    spaces
+    string ","
+    spaces
+    q <- many1 alphaNum
+    return (i,q)
+  return iq
+
+attRule :: GenParser Char st (String, String, [(Int, String)])
 attRule = do
   q <- parseQ
   a <- termOrvar
   ruleSep
-  qs <- many parseQ
-  return (q,a,qs)
+  qs <- many parseIntQ
+  let qs' = map (first read) qs
+  return (q,a,qs')
 
 parseAtt :: GenParser Char st ATT
 parseAtt = do
