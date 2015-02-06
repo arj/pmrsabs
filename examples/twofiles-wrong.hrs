@@ -1,0 +1,58 @@
+%BEGING
+S = Newr C1.
+C1 x = Neww (C2 x).
+C2 x y = F x y end.
+F x y k = br (Close x k) (Read x (Write y (F x y k))).
+I x = i x.
+K x = k x.
+Newr k = br (newr (k I)) (k K).
+Neww k = br (neww (k I)) (k K).
+Close x k = x (close k).
+Read x k = x (read k).
+Write y k = y (write k).
+%ENDG
+
+%BEGINA
+q0 br -> q0 q0.
+qr br -> qr qr.
+qw br -> qw qw.
+qany br -> qany qany.
+q0 newr -> qr.
+q0 neww -> qw.
+q0 k -> q0.
+q0 read -> q0.
+q0 write -> q0.
+q0 close -> q0.
+qr i -> qri.
+qr k -> qrk.
+qrk read -> qr.
+qrk write -> qr.
+qrk close -> qr.
+qri read -> qr.
+qri close -> qc.
+qw i -> qwi.
+qw k -> qwk.
+qwk read -> qw.
+qwk write -> qw.
+qwk close -> qw.
+qwi write -> qw.
+qwi close -> qc.
+qc k -> qck.
+qck read -> qc.
+qck write -> qc.
+qck close -> qc.
+qr newr -> qany.
+qr neww -> qany.
+qw newr -> qany.
+qw neww -> qany.
+qany i -> qany.
+qany k -> qany.
+qany read -> qany.
+qany write -> qany.
+qany close -> qany.
+qany end -> .
+qc end ->.
+q0 end ->.
+qrw end ->.
+%ENDA
+
