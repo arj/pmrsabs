@@ -197,6 +197,3 @@ wPMRS gs pmrs = mkWPMRS sig nt' rs' s'
     bndpm  = SM.filterWithKey (\(k,_) -> S.member k pmvars) bnd
     --
     (instnt,instrs) = instantiationRules bndpm
-
-sPMRS :: PMRS -> PMRS
-sPMRS = undefined

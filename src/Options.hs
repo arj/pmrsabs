@@ -1,6 +1,12 @@
-module Options where
+module Options (
+    Flag(),
+    getPrefaceDir,
+    isVerbose,
+    isExistential,
+    pmrsabsOptions
+) where
 
-import System.Console.GetOpt
+import System.Console.GetOpt (getOpt, OptDescr(..), ArgDescr(..), ArgOrder(..), usageInfo)
 
 data Flag 
     = Verbose

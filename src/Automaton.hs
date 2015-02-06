@@ -1,6 +1,13 @@
-module Automaton
-
-where
+module Automaton (
+  ATT(..),
+  State,
+  mkATT,
+  attTransition,
+  PrettyPrint(..),
+  attStates,
+  Quantifier(..),
+  attAddBr
+) where
 
 import Data.List
 import Data.MultiMap (MultiMap)
@@ -8,7 +15,6 @@ import qualified Data.MultiMap as M
 import Data.Set (Set)
 import qualified Data.Set as S
 import Text.Printf (printf)
-import Control.Exception (assert)
 
 import Aux
 import Sorts
@@ -24,6 +30,7 @@ mkATT d q0 = ATT d q0
 instance PrettyPrint ATT where
   prettyPrint att = "%BEGINA\n" ++ show att ++ "\n%ENDA"
 
+-- | Give string representations of transitions for the ATT.
 showRules :: Delta -> String
 showRules delta = intercalate "\n" $ map f $ M.toList delta
   where

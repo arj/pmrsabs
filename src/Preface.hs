@@ -16,7 +16,6 @@ module Preface (
 ) where
 
 import Control.Exception (try, IOException, catch)
--- import Control.Concurrent (threadDelay)
 import Control.Monad (liftM, mzero)
 import Control.Applicative ((<$>),(<*>))
 import Control.Arrow (second)
@@ -24,8 +23,8 @@ import Data.Aeson (decode, Value(..), FromJSON(..),(.:),(.:?))
 import Data.ByteString.Lazy.Char8 (pack)
 import Data.Maybe (fromJust)
 import qualified Data.HashMap.Strict as HM
-import System.IO
-import System.IO.Temp
+import System.IO (hPutStr, hFlush)
+import System.IO.Temp (withSystemTempFile)
 import System.Process (readProcess)
 import Text.Regex (mkRegex, matchRegex)
 import qualified Data.Text as T
@@ -42,9 +41,6 @@ class PrettyPrint a => PrefaceGrammar a where
 instance PrefaceGrammar PMRS where
 instance PrefaceGrammar RSFD where
 instance PrefaceGrammar HORS where
-
---prefacePath :: String
---prefacePath = "/home/jakobro/work/impl/PrefaceModelchecker/Preface/Preface/bin/Debug/Preface.exe"
 
 data Answer = Accepted
             | Rejected Term
