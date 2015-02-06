@@ -13,6 +13,7 @@ import HORS (determinizeUntypedHORS, findCEx, removeBrFromCEx)
 import Automaton
 import Options
 --import           PMRSParser
+import Aux (prettyPrint)
 import Preface as P
 import HORS ()
 import WPMRSTransformer ()
@@ -58,6 +59,9 @@ main = do
 
       let quantifier = if existential then Existential else Universal
       let detatt = attAddBr quantifier "br__br" att
+
+      verbose $ "Deterministic ATT\n" ++ prettyPrint detatt
+      verbose $ "Deterministic HORS\n" ++ prettyPrint dethors
 
       verbose "Calling Preface"    
       (checkTime, result) <- timeItT $ check prefaceDir dethors detatt
