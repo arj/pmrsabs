@@ -50,7 +50,7 @@ main = do
       let quantifier = if existential then Existential else Universal
       let detatt = attAddBr quantifier "br__br" att
 
-      verbose $ "Preface Input:\n" ++ prettyPrint dethors ++ prettyPrint dethors
+      verbose $ "Preface Input:\n" ++ prettyPrint dethors ++ prettyPrint detatt
 
       verbose "Calling Preface"    
       (checkTime, result) <- timeItT $ P.check prefaceDir dethors detatt

@@ -189,7 +189,7 @@ stepAutomatonInner :: Path -> [(Int, State)] -> String -> [Term] -> [Config]
 stepAutomatonInner p qs s ts = map intStatePairToCfg qs
   where
     intStatePairToCfg (i,qi) =
-      let ti = ts !! i in
+      let ti = ts !! (i-1) in
       Config ti qi ((s,i) : p)
 
 -- | Given a set of rules and a term of the form (F t1 ... tn)
