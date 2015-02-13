@@ -3,6 +3,7 @@ module Options (
     getPrefaceDir,
     isVerbose,
     isExistential,
+    isRunOnly,
     pmrsabsOptions
 ) where
 
@@ -13,7 +14,8 @@ data Flag
     | DoExistential
     | Version 
     | PrefaceDir String
-    deriving Show
+    | RunHORS
+    deriving (Eq, Show)
 
 options :: [OptDescr Flag]
 options =
@@ -21,6 +23,7 @@ options =
     , Option ['V','?'] ["version"] (NoArg Version)       "show version number"
     , Option ['e'] ["existential"] (NoArg DoExistential)       "Property holds if true for some trees of the language"
     , Option []     ["preface"]  (ReqArg PrefaceDir "DIR")   "Location of Preface"
+    , Option ['r'] ["run"] (NoArg RunHORS) "Interpreter for HORS"
     ]
 
 getPrefaceDir :: [Flag] -> String
@@ -37,6 +40,9 @@ isExistential :: [Flag] -> Bool
 isExistential [] = False
 isExistential (DoExistential:_) = True
 isExistential (_:t) = isExistential t
+
+isRunOnly :: [Flag] -> Bool
+isRunOnly flg = any ((==) RunHORS) flg
 
 pmrsabsOptions :: [String] -> IO ([Flag], [String])
 pmrsabsOptions argv = 

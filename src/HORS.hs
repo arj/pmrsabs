@@ -10,7 +10,9 @@ module HORS (
   determinizeHORS,
   determinizeUntypedHORS,
   findCEx,
-  removeBrFromCEx
+  removeBrFromCEx,
+  stepNDHORS,
+  startSymbol
   ) where
 
 import Data.List
@@ -20,6 +22,8 @@ import qualified Data.MultiMap as MM
 import Control.Monad.Writer (Writer, tell, execWriter)
 
 import Text.Printf (printf)
+
+import Debug.Trace (trace)
 
 import Aux
 import Term (Head(..), Term(..), typeCheck, app, terminal, var, substAll, nonterminal)
@@ -131,6 +135,11 @@ data Config = Config Term State Path
 instance Show Config where
   show (Config t s p) = printf "(%s,%s,%s)" (show t) s (show p)
 
+
+-- | Extracts the start term of the HORS.
+startSymbol :: HORS -> Term
+startSymbol (HORS _ _ _ s) = nonterminal s
+
 -- | Initial configuration node.
 initialCfg :: HORS -> ATT -> Config
 initialCfg (HORS _ _ _ s) (ATT _ q0) = Config (nonterminal s) q0 []
@@ -206,3 +215,18 @@ reduce (HORS _ _ rs _) (s,ts) =
 -- applies the rule.
 applyRule :: [Term] -> HORSRule -> Term
 applyRule ts (HORSRule _ xs t) = substAll (zip xs ts) t
+
+stepDHORS :: HORS -> Term -> Term
+stepDHORS h (App (Nt n) ts) = reduce h (n,ts)
+stepDHORS h (App (T s) ts) = App (T s) $ map (stepDHORS h) ts -- mapFirstNt ts
+  where
+    mapFirstNt [] = []
+    mapFirstNt (t@(App (Nt _) _):rest) = stepDHORS h t : rest
+    mapFirstNt (t : rest) = stepDHORS h t : mapFirstNt rest
+
+stepNDHORS :: HORS -> Int -> Term -> Term
+stepNDHORS h n t
+  | n == 0 = t
+  | n > 0  =
+    let t' = stepDHORS h t in
+    stepNDHORS h (n-1) t'

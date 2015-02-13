@@ -1,10 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Examples
---(
---  example5,
---  example2pmrs,
---  exampleRmatch
---)
+
 where
 
 import           Data.Set      (Set)
@@ -12,6 +8,9 @@ import qualified Data.Set      as S
 import qualified Data.SetMap as SM
 import qualified Data.Map as M
 import           Control.Monad (liftM)
+
+import Data.MultiMap (MultiMap)
+import qualified Data.MultiMap as MM
 
 import           Abstraction
 import           PMRS
@@ -251,8 +250,9 @@ example8pmrs = mkPMRS sigma nonterminals r sMain
     nonterminals = mkRankedAlphabet [ssMain
                                 ,ssMap2
                                 ,ssKZero
-                                ,ssKOne]
-    r = listToRules [PMRSRule "Main" [] (Just m) $ mkMap2 kzero kone m
+                                ,ssKOne
+                                ,ssS]
+    r = listToRules [PMRSRule "Main" ["m"] Nothing $ mkMap2 kzero kone m
                     ,PMRSRule "Map2" ["phi","psi"] (Just nil) $ nil
                     ,PMRSRule "Map2" ["phi","psi"] (Just $ app cons [x,xs]) $
                         mkCons (app phi [x]) (mkMap2 psi phi xs)
@@ -307,9 +307,9 @@ exampleDetWpmrs = mkPMRS sigma nonterminals r "S"
                    ]
 
 att1 :: ATT
-att1 = ATT (M.fromList
-  [(("q0","a"),["q1","q2"])
-  ,(("q0","cons"),["q0","q1"])
+att1 = ATT (MM.fromList
+  [(("q0","a"),S.fromList [(1,"q1"),(2,"q2")])
+  ,(("q0","cons"),S.fromList [(1,"q0"),(2,"q1")])
   ]
   ) "q0"
 

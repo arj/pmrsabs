@@ -3,6 +3,10 @@ where
 
 import Data.Set (Set)
 import qualified Data.Set as S
+import Debug.Trace (traceShow)
+
+traceIt :: Show a => a -> a
+traceIt a = traceShow (show a) a
 
 showSet :: Show a => Set a -> [Char]
 showSet s = if S.null s then "[]" else show s

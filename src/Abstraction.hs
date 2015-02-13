@@ -1,12 +1,4 @@
 module Abstraction
-(
-  wPMRS, sPMRS,
-  Binding,
-  substHead,
-  rmatch,
-  simpleTerms,
-  bindingAnalysis
-  )
 where
 
 import           Prelude hiding (pi)
