@@ -1,0 +1,26 @@
+%BEGING
+S -> Pi2 List bot bot true false.
+List f ctrue cfalse cnil ccons -> P_cons P_true List f ctrue cfalse cnil ccons.
+Pair x y f ctrue cfalse cnil ccons -> f x y ctrue cfalse cnil ccons.
+K1 x y ctrue cfalse cnil ccons -> x ctrue cfalse cnil ccons.
+K2 x y ctrue cfalse cnil ccons -> y ctrue cfalse cnil ccons.
+Pi1 p ctrue cfalse cnil ccons -> p K1 ctrue cfalse cnil ccons.
+Pi2 p ctrue cfalse cnil ccons -> p K2 ctrue cfalse cnil ccons.
+P_true f ctrue cfalse cnil ccons -> Pair T_true K_true f ctrue cfalse cnil ccons.
+K_true ctrue cfalse cnil ccons -> ctrue.
+P_false f ctrue cfalse cnil ccons -> Pair T_false K_false f ctrue cfalse cnil ccons.
+K_false ctrue cfalse cnil ccons -> cfalse.
+T_false ctrue cfalse cnil ccons -> false.
+T_true ctrue cfalse cnil ccons -> true.
+P_nil f ctrue cfalse cnil ccons -> Pair T_nil K_nil f ctrue cfalse cnil ccons.
+K_nil ctrue cfalse cnil ccons -> cnil.
+T_nil ctrue cfalse cnil ccons -> nil.
+P_cons x xs f ctrue cfalse cnil ccons -> br (Pair (T_cons (Pi1 x) (Pi1 xs)) (K_cons (Pi2 x) (Pi2 xs)) f ctrue cfalse cnil ccons)   (Pair (T_cons (Pi1 x) (Pi1 xs)) K_c_cons f ctrue cfalse cnil ccons).
+K_cons x xs ctrue cfalse cnil ccons = x (xs ccons ccons ccons ccons) (xs ccons ccons ccons ccons) (xs ccons ccons ccons ccons) (xs ccons ccons ccons ccons).
+K_c_cons ctrue cfalse cnil ccons = ccons.
+T_cons x xs ctrue cfalse cnil ccons = cons (x ctrue cfalse cnil ccons) (xs ctrue cfalse cnil ccons).
+%ENDG
+%BEGINA
+q0 br -> (1,q0) (2,q0).
+q0 true ->.
+%ENDA

@@ -1,0 +1,7 @@
+%BEGING
+S -> a.
+S -> b.
+%ENDG
+%BEGINA
+q0 a ->.
+%ENDA

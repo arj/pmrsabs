@@ -1,0 +1,9 @@
+%BEGINWPMRS
+S -> IsEmpty List.
+IsEmpty nil -> true.
+IsEmpty (cons x xs) -> false.
+List -> cons true List.
+%ENDWPMRS
+%BEGINA
+q0 a ->.
+%ENDA
