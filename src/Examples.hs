@@ -18,6 +18,7 @@ import HORS
 import           Sorts
 import           Term
 import Automaton
+import WPMRSTransformer (fromPMRS)
 
 
 example5 :: (Set Term, Set Term, Set Term)
@@ -236,8 +237,18 @@ example2pmrs = mkPMRS sigma nonterminals r sMain
 
 example2wpmrs :: Monad m => m PMRS
 example2wpmrs = do
-    pmrs <- example2pmrs
-    wPMRS sS pmrs
+  pmrs <- example2pmrs
+  wPMRS sS pmrs
+
+example2hors :: Monad m => m HORS
+example2hors = do
+  hors <- example2wpmrs
+  fromPMRS hors
+
+example2dhors :: Monad m => m HORS
+example2dhors = do
+  hors <- example2hors
+  return $ determinizeUntypedHORS hors
 
 example8pmrs :: Monad m => m PMRS
 example8pmrs = mkPMRS sigma nonterminals r sMain
