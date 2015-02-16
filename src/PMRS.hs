@@ -147,6 +147,9 @@ mkPMRS t nt r s = do -- TODO Check if rule for start symbol have arity 0
       else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)
   return $ PMRS t nt r s
 
+mkUntypedPMRS :: PMRSRules -> Symbol -> PMRS
+mkUntypedPMRS rs s = PMRS M.empty M.empty rs s
+
 -- | Removes rules if they are not used anywhere.
 -- Could be improved by doing a reachability analysis.
 -- At the moment two unused nonterminals can keep each

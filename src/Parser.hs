@@ -64,6 +64,15 @@ genericTermToTerm xs (GenApp (GenTermVar t) gts) =
   where
     rest = map (genericTermToTerm xs) gts
 
+genericPatternToPattern :: GenericTerm -> Term
+genericPatternToPattern t@(GenApp (GenNT n) gts) = error $ "Nonterminals in patterns are not allowed: " ++ (show t)
+genericPatternToPattern (GenApp (GenTermVar t) gts) =
+  if head t == '!'
+    then app (var t) $ rest
+    else app (terminal t) $ rest
+  where
+    rest = map genericPatternToPattern gts
+
 assignFreshVar :: Symbol -> State Int (Symbol, Sort)
 assignFreshVar x = do
   i <- show <$> bump
@@ -104,7 +113,12 @@ createConstraints gamma (App h ts) = do
   return $ (ret, S.insert (hType, hType2) $ S.unions gammas)
 
 pmrsFromGenericRules :: [GenericRule] -> PMRS
-pmrsFromGenericRules = undefined
+pmrsFromGenericRules rules = mkUntypedPMRS rs s
+  where
+    (GRHORS s _ _)  = head rules
+    rs = listToRules $ map transformRule rules
+    transformRule (GRHORS f xs t) = PMRSRule f xs Nothing $ genericTermToTerm xs t
+    transformRule (GRPMRS f xs p t) = PMRSRule f xs (Just $ genericPatternToPattern p) $ genericTermToTerm xs t
 
 horsFromGenericRules :: [GenericRule] -> HORS
 horsFromGenericRules rules = mkUntypedHORS rs s
@@ -191,14 +205,14 @@ parseHors = do
   string "%ENDG"
   return $ horsFromGenericRules r
 
-pmrs :: GenParser Char st [GenericRule]
-pmrs = do
-  string "%BEGING"
+parsePmrs :: GenParser Char st PMRS
+parsePmrs = do
+  string "%BEGINPMRS"
   newline
   spaces
   r <- endBy1 (((try horsRule) <|> pmrsRule)) (char '.' >> newline >> spaces)
-  string "%ENDG"
-  return r
+  string "%ENDPMRS"
+  return $ pmrsFromGenericRules r
 
 parseQ :: GenParser Char st String
 parseQ = do
@@ -235,12 +249,23 @@ parseAtt = do
   string "%ENDA"
   return $ attFromGenericRules r
 
+data TG = THORS HORS
+  | TPMRS PMRS
+  deriving (Show)
+
 parseHORSATT :: GenParser Char st (HORS, ATT)
 parseHORSATT = do
   hors <- parseHors
   spaces
   att <- parseAtt
   return (hors, att)
+
+parseTreeGrammarATT :: GenParser Char st (TG, ATT)
+parseTreeGrammarATT = do
+  grammar <- try (parseHors >>= return . THORS) <|> (parsePmrs >>= return . TPMRS)
+  spaces
+  att <- parseAtt
+  return (grammar, att)
 
 parseHORSATTfromFile :: FilePath -> IO (Either ParseError (HORS,ATT))
 parseHORSATTfromFile file = parseFromFile parseHORSATT file
