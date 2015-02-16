@@ -11,27 +11,38 @@ import qualified Data.Set as S
 
 import CommonRS (rulesToRuleList)
 import Aux (traceIt)
-import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs)
+import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs,isomorphic)
 import Sorts (ar,(~>),createSort,RankedAlphabet,Symbol,Sort(Base))
 import PMRS (PMRS(..), PMRSRules(..), PMRSRule(..), isWPMRS, patternDomain)
 import HORS (HORS(..), HORSRule(..), mkHorsRules, mkHORS, mkUntypedHORS)
 
 fromPMRS :: Monad m => PMRS -> m HORS
 fromPMRS pmrs@(PMRS sigma n r s) =
-    if (not $ isWPMRS pmrs)
-      then error "Cannot transform: PMRS is not a weak PMRS."
-      else
-        let patterns = patternDomain pmrs in
-        let param = Param 1 (S.size patterns) "_283937" (terminal "bot") in -- TODO set prefix
-        let pm = const 0 in
-        let (_nAux, rAux) = auxRules param in
-        let (_nTerminals, rTerminals) = rulesForTerminals param sigma pm in
-        let (_nRules, rRules) = rulesForRules param r in
-        let (s', _nStart, rStart) = mkStart param s in
-        let rules = rAux ++ rTerminals ++ rRules ++ rStart in
-        let rs = mkHorsRules rules in
-        -- mkHORS sigma nTerminals rs "S"
-        return $ mkUntypedHORS rs s'
+  if (not $ isWPMRS pmrs)
+    then error "Cannot transform: PMRS is not a weak PMRS."
+    else
+      let patterns = patternDomain pmrs in
+      let param = Param 1 (S.size patterns) "" (terminal "bot") in -- TODO set prefix
+      let pm = searchTerm patterns in
+      let (_nAux, rAux) = auxRules param in
+      let (_nTerminals, rTerminals) = rulesForTerminals param sigma pm in
+      let (_nRules, rRules) = rulesForRules param pm r in
+      let (s', _nStart, rStart) = mkStart param s in
+      let rules = rAux ++ rTerminals ++ rRules ++ rStart in
+      let rs = mkHorsRules rules in
+      -- mkHORS sigma nTerminals rs "S"
+      return $ mkUntypedHORS rs s'
+  where
+    searchTerm patterns t =
+        let mapping = zip (S.toList patterns) [1..] in
+        searchTerm' t mapping
+    --
+    searchTerm' :: Term -> [(Term, Int)] -> Int
+    searchTerm' _ [] = assert True undefined
+    searchTerm' t ((ti,i):rs)
+      | isomorphic t ti = i
+      | otherwise       = searchTerm' t rs
+        
 
 ---
 
@@ -55,15 +66,15 @@ mkStart param s = (s', ra, [rule])
     npi1   = nonterminal $ "Pi1" ++ paramSuffix param
     rule = HORSRule s' [] $ app npi1 $ (terminal s) : bots
 
-rulesForRules :: Param -> PMRSRules -> (RankedAlphabet, [HORSRule])
-rulesForRules param rules = (ra, rs)
+rulesForRules :: Param -> (Term -> Int) -> PMRSRules -> (RankedAlphabet, [HORSRule])
+rulesForRules param pm rules = (ra, rs)
   where
-    (ras, rss) = unzip $ M.elems $ M.map (mkRuleForRule param) $ MM.toMap rules
+    (ras, rss) = unzip $ M.elems $ M.map (mkRuleForRule param pm) $ MM.toMap rules
     ra = M.unions ras
     rs = concat rss
 
-mkRuleForRule :: Param -> [PMRSRule] -> (RankedAlphabet, [HORSRule])
-mkRuleForRule param rs@(PMRSRule f xs (Just _) _:_) = (ra, [r1,r2])
+mkRuleForRule :: Param -> (Term -> Int) -> [PMRSRule] -> (RankedAlphabet, [HORSRule])
+mkRuleForRule param pm rs@(PMRSRule f xs (Just _) _:_) = (ra, [r1,r2])
   where
     ra = assert False undefined
     --
@@ -81,9 +92,17 @@ mkRuleForRule param rs@(PMRSRule f xs (Just _) _:_) = (ra, [r1,r2])
     pi2Arg p = app pi2 [var p]
     --
     r1 = HORSRule f xs' $ app f_caseTerm (xsTerm ++ [pi2Arg parg,var selector] ++ csTerm)
-    r2 = HORSRule f_case xs' $ app (var parg) $ replicate (paramCntPM param) $ paramBot param
+    --
+    patternsLookupMap = map (\(PMRSRule _ _ (Just p) t) -> (pm p, t)) rs
+    --
+    createCases i =
+        case lookup i patternsLookupMap of
+            Just t -> t
+            Nothing -> paramBot param
+    --
+    r2 = HORSRule f_case xs' $ app (var parg) $ map createCases [1..(paramCntPM param)]
 
-mkRuleForRule param rs@(PMRSRule _ _  Nothing  _:_) = (undefined, map horsMap rs)
+mkRuleForRule param pm rs@(PMRSRule _ _  Nothing  _:_) = (undefined, map horsMap rs)
   where
     suffix = paramSuffix param
     m k = Nt $ "T_" ++ k ++ suffix

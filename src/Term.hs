@@ -6,6 +6,7 @@ module Term (
   app,var, mkCase, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
   fv, fv', subst, substAll, substTerminal, substTerminals, subterms, subterms', getN, replaceVarsBy,
   typeCheck, caseVars, height, maxHeight, heightCut, terminalSigma, getT,
+  isomorphic,
 
   isTerminalHead, isNTHead, prefixTerms,
   isUsingCase, isUsingD, isNotContainingN,
@@ -180,6 +181,10 @@ appendArgs :: Term -> [Term] -> Term
 appendArgs (App t ts) cs = App t (ts ++ cs)
 appendArgs t _ = t 
 
+-- |Checks if two terms are isomorphic, i.e.
+-- equal except different variable names.
+isomorphic :: Term -> Term -> Bool
+isomorphic t1 t2 = replaceVarsBy "_" t1 == replaceVarsBy "_" t2
 ---------------------------------------------------------
 
 type TypeBinding = Map String Sort

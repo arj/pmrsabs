@@ -165,10 +165,10 @@ instance Show PMRS where
 
 prettyPrintPMRS :: PMRS -> Writer String ()
 prettyPrintPMRS (PMRS _ _ r s) = do
-  tell "%BEGING"
+  tell "%BEGINPMRS"
   tell "\n"
   prettyPrintRules s r
-  tell "%ENDG"
+  tell "%ENDPMRS"
   tell "\n"
 
 prettyPrintRule :: PMRSRule -> Writer String ()
