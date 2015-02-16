@@ -12,6 +12,7 @@ module Term (
   isMatching, isMatchingErr,
 
   runM, runIsMatching, pNtHead, ntCut, trees, trees',
+  appendArgs,
 
   bump,
 
@@ -173,6 +174,11 @@ isUsingD (D _) = True
 -- | Checks whether the given term does not contain nonterminal symbols.
 isNotContainingN :: Term -> Bool
 isNotContainingN t = S.null $ getN t
+
+-- | Appends arguments on top-level application
+appendArgs :: Term -> [Term] -> Term
+appendArgs (App t ts) cs = App t (ts ++ cs)
+appendArgs t _ = t 
 
 ---------------------------------------------------------
 

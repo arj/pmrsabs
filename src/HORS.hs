@@ -3,7 +3,8 @@ module HORS (
 
   HORSRule(..),
   HORSRules,
-  horsRules,
+  mkHorsRules,
+  horsRulesAsList,
   HORS(..),
   mkHORS,
   mkUntypedHORS,
@@ -42,12 +43,19 @@ type HORSRules = Rules HORSRule
 instance Show HORSRule where
   show (HORSRule f xs body) = unwords $ filter (not . null) [show f, unwords xs,"=>",show body]
 
-horsRules :: [HORSRule] -> HORSRules
-horsRules lst = MM.fromList $ map fPairUp lst
+mkHorsRules :: [HORSRule] -> HORSRules
+mkHorsRules lst = MM.fromList $ map fPairUp lst
   where
     fPairUp r@(HORSRule f _ _) = (f,r)
 
-data HORS = HORS RankedAlphabet RankedAlphabet HORSRules Symbol
+data HORS = HORS { horsSigma :: RankedAlphabet
+                 , horsNonterminal :: RankedAlphabet
+                 , horsRules :: HORSRules
+                 , horsStart :: Symbol
+                 }
+
+horsRulesAsList :: HORSRules -> [HORSRule]
+horsRulesAsList = concat . MM.elems
 
 mkHORS :: Monad m => RankedAlphabet -> RankedAlphabet -> HORSRules -> Symbol -> m HORS
 mkHORS t nt rs s = do

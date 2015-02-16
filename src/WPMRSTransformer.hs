@@ -1,37 +1,99 @@
+{-# LANGUAGE ScopedTypeVariables, BangPatterns #-}
+
 module WPMRSTransformer
 where
 
 import GHC.Base (assert)
 import qualified Data.Map as M
+import qualified Data.MultiMap as MM
 import Text.Printf (printf)
+import qualified Data.Set as S
 
-import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt))
+import CommonRS (rulesToRuleList)
+import Aux (traceIt)
+import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs)
 import Sorts (ar,(~>),createSort,RankedAlphabet,Symbol,Sort(Base))
-import PMRS (PMRS(..), PMRSRule(..))
-import HORS (HORS(..), HORSRule(..))
+import PMRS (PMRS(..), PMRSRules(..), PMRSRule(..), isWPMRS, patternDomain)
+import HORS (HORS(..), HORSRule(..), mkHorsRules, mkHORS, mkUntypedHORS)
 
-fromPMRS :: PMRS -> HORS
-fromPMRS (PMRS _t _n _rs _s) = assert False undefined
+fromPMRS :: Monad m => PMRS -> m HORS
+fromPMRS pmrs@(PMRS sigma n r s) =
+    if (not $ isWPMRS pmrs)
+      then error "Cannot transform: PMRS is not a weak PMRS."
+      else
+        let patterns = patternDomain pmrs in
+        let param = Param 1 (S.size patterns) "_283937" (terminal "bot") in -- TODO set prefix
+        let pm = const 0 in
+        let (_nAux, rAux) = auxRules param in
+        let (_nTerminals, rTerminals) = rulesForTerminals param sigma pm in
+        let (_nRules, rRules) = rulesForRules param r in
+        let (s', _nStart, rStart) = mkStart param s in
+        let rules = rAux ++ rTerminals ++ rRules ++ rStart in
+        let rs = mkHorsRules rules in
+        -- mkHORS sigma nTerminals rs "S"
+        return $ mkUntypedHORS rs s'
 
 ---
 
 data Param = Param { paramDepth :: Int
                    , paramCntPM :: Int
-                   , paramPrefix :: String
+                   , paramSuffix :: String
+                   , paramBot :: Term
                    }
+
+simpleParam = Param 1 4 "" (terminal "bot")
 
 idPair :: Symbol
 idPair = "Pair"
 
-rulesForHORSRules :: Param -> [PMRSRule] -> (RankedAlphabet, [HORSRule])
-rulesForHORSRules param rules = (ra, map g rules)
+mkStart :: Param -> Symbol -> (Symbol, RankedAlphabet, [HORSRule])
+mkStart param s = (s', ra, [rule])
+  where
+    s'   = "S_HORS" ++ paramSuffix param
+    ra   = assert False undefined
+    bots = replicate (paramCntPM param) $ paramBot param
+    npi1   = nonterminal $ "Pi1" ++ paramSuffix param
+    rule = HORSRule s' [] $ app npi1 $ (terminal s) : bots
+
+rulesForRules :: Param -> PMRSRules -> (RankedAlphabet, [HORSRule])
+rulesForRules param rules = (ra, rs)
+  where
+    (ras, rss) = unzip $ M.elems $ M.map (mkRuleForRule param) $ MM.toMap rules
+    ra = M.unions ras
+    rs = concat rss
+
+mkRuleForRule :: Param -> [PMRSRule] -> (RankedAlphabet, [HORSRule])
+mkRuleForRule param rs@(PMRSRule f xs (Just _) _:_) = (ra, [r1,r2])
   where
     ra = assert False undefined
-    prefix = paramPrefix param
-    m k = Nt $ prefix ++ "T_" ++ k
     --
-    g (PMRSRule f xs Nothing t) = HORSRule f xs $ substTerminals m t
-    g _ = error "rulesForHORSRules may only be called for PMRSRules with no pm"
+    suffix = paramSuffix param
+    f_case = f ++ "_case" ++ suffix
+    f_caseTerm = nonterminal f_case
+    parg = "parg" ++ suffix
+    selector = "f" ++ suffix
+    --
+    cs     = genXs "c" $ paramCntPM param
+    csTerm = genXsTerm "c" $ paramCntPM param
+    xs' = xs ++ [parg,selector] ++ cs
+    xsTerm = map var xs
+    pi2  = nonterminal $ "Pi2" ++ suffix
+    pi2Arg p = app pi2 [var p]
+    --
+    r1 = HORSRule f xs' $ app f_caseTerm (xsTerm ++ [pi2Arg parg,var selector] ++ csTerm)
+    r2 = HORSRule f_case xs' $ app (var parg) $ replicate (paramCntPM param) $ paramBot param
+
+mkRuleForRule param rs@(PMRSRule _ _  Nothing  _:_) = (undefined, map horsMap rs)
+  where
+    suffix = paramSuffix param
+    m k = Nt $ "T_" ++ k ++ suffix
+    selector = "f" ++ suffix
+    --
+    cs     = genXs "c" $ paramCntPM param
+    csTerm = genXsTerm "c" $ paramCntPM param
+    args = var selector : csTerm
+    --
+    horsMap (PMRSRule f xs Nothing t) = HORSRule f (xs ++ [selector] ++ cs) $ appendArgs (substTerminals m t) args
 
 -- | Given a ranked alphabet of terminal symbols this function
 -- returns a rankedalphabet of nonterminals and a list of rules representing
@@ -57,20 +119,20 @@ terminalRules param k Base pm = (ra, rs)
     ra = M.fromList [justkT, tkT]
     rs = [justkR, tkR]
     --
-    prefix = paramPrefix param
-    justk  = prefix ++ "Just_" ++ k
-    tk     = prefix ++ "T_" ++ k
-    pair   = prefix ++ idPair
+    suffix = paramSuffix param
+    justk  = "Just_" ++ k ++ suffix
+    tk     = "T_" ++ k ++ suffix
+    pair   = idPair ++ suffix
+    selector = "f" ++ suffix
     --
-    counterT = createSort $ paramDepth param
     pT       = createSort $ paramCntPM param
-    churchPairT = (pT ~> (counterT ~> pT) ~> pT) ~> pT
+    churchPairT = (pT ~> pT ~> pT) ~> pT
     --
-    justkT   = (justk, counterT ~> pT)
+    justkT   = (justk, pT)
     tkT      = (tk, churchPairT)
     --
-    justkR   = HORSRule justk ("n" : cs) $ var $ printf "c%i" $ pm (terminal k)
-    tkR      = HORSRule tk ("f" : cs) $ app (nonterminal pair) $ [terminal k, nonterminal justk, var "f"] ++ csTerm
+    justkR   = HORSRule justk cs $ var $ printf "c%i" $ pm (terminal k)
+    tkR      = HORSRule tk (selector : cs) $ app (nonterminal pair) $ [terminal k, nonterminal justk, var "f"] ++ csTerm
     --
     cs     = genXs "c" $ paramCntPM param
     csTerm = genXsTerm "c" $ paramCntPM param
@@ -79,17 +141,18 @@ terminalRules param k ksrt pm = (ra, [mk_k, case_k, r])
   where
     ra     = M.unions [ra_mk_k, ra_case_k, assert False undefined]
     --
-    prefix = paramPrefix param
-    nmkk   = nonterminal $ prefix ++ "Mk_" ++ k
-    ncasek = nonterminal $ prefix ++ "Case_" ++ k
-    npair  = nonterminal $ prefix ++ idPair
-    npi1   = nonterminal $ prefix ++ "Pi1"
-    tk     = prefix ++ "T_" ++ k
+    suffix = paramSuffix param
+    nmkk   = nonterminal $ "Mk_" ++ k ++ suffix
+    ncasek = nonterminal $ "Case_" ++ k ++ suffix
+    npair  = nonterminal $ idPair ++ suffix
+    npi1   = nonterminal $ "Pi1" ++ suffix
+    npi2   = nonterminal $ "Pi2" ++ suffix
+    tk     = "T_" ++ k ++ suffix
     --
     r      = HORSRule tk (xs ++ ["f"] ++ cs) t
     t      = app npair $ [mkcall, ccall, var "f"] ++ csTerm
     mkcall = app nmkk $ map (\xi -> app npi1 [xi]) xsTerm
-    ccall  = app ncasek xsTerm
+    ccall  = app ncasek $ map (\xi -> app npi2 [xi]) xsTerm -- TODO Adjust type!
     l      = ar ksrt
     n      = paramCntPM param
     xs     = genXs "x" l
@@ -106,7 +169,7 @@ mkMkRule :: Param -> Symbol -> [String] -> [Term] -> [String] -> [Term] -> (Rank
 mkMkRule param k xs xsTerm cs csTerm = (ra, HORSRule f (xs ++ cs) t)
   where
     ra  = M.singleton f $ assert False undefined
-    f   = paramPrefix param ++ "Mk_" ++ k
+    f   = "Mk_" ++ k ++ paramSuffix param
     t   = app (terminal k) $ xis
     xis = map (\xi -> app xi csTerm) xsTerm
 
@@ -114,10 +177,10 @@ mkMkRule param k xs xsTerm cs csTerm = (ra, HORSRule f (xs ++ cs) t)
 -- given subterms and a terminal.
 -- We have @Case_k x1 ... xl cnt c1 ... cn = [(complicated pm-term)]@
 mkCasekRule :: Param -> Symbol -> [String] -> [String] -> (Term -> Int) -> (RankedAlphabet, HORSRule)
-mkCasekRule param k xs cs _pm = (ra, HORSRule f (xs ++ ["cnt"] ++ cs) t)
+mkCasekRule param k xs cs _pm = (ra, HORSRule f (xs ++ cs) t)
   where
     ra = M.singleton f $ assert False undefined
-    f  = paramPrefix param ++ "Case_" ++ k
+    f  = "Case_" ++ k ++ paramSuffix param
     t  = var "undefined" -- assert False undefined
 
 -- |Creates the auxilliary rules that are needed
@@ -126,37 +189,31 @@ mkCasekRule param k xs cs _pm = (ra, HORSRule f (xs ++ ["cnt"] ++ cs) t)
 auxRules :: Param -> (RankedAlphabet, [HORSRule])
 auxRules param = (ra, rs)
   where
-    ra = M.fromList $ cntTs ++ [pairT, k1T, k2T, pi1T, pi2T]
-    rs = cntRs ++ [pairR,k1R,k2R,pi1R,pi2R]
+    ra = M.fromList $ [pairT, k1T, k2T, pi1T, pi2T]
+    rs = [pairR,k1R,k2R,pi1R,pi2R]
     --
-    prefix = paramPrefix param
-    cnt :: Int -> String
-    cnt i = prefix ++ "Cnt" ++ show i
-    pair = prefix ++ idPair
-    k1   = prefix ++ "K1"
-    k2   = prefix ++ "K2"
-    pi1  = prefix ++ "Pi1"
-    pi2  = prefix ++ "Pi2"
+    suffix = paramSuffix param
+    pair = idPair ++ suffix
+    k1   = "K1" ++ suffix
+    k2   = "K2" ++ suffix
+    pi1  = "Pi1" ++ suffix
+    pi2  = "Pi2" ++ suffix
     --
-    counterT = createSort $ paramDepth param
     pT       = createSort $ paramCntPM param
-    churchPairT = (pT ~> (counterT ~> pT) ~> pT) ~> pT
-    kT          = counterT ~> pT ~> (counterT ~> pT) ~> pT
+    churchPairT = (pT ~> pT ~> pT) ~> pT
+    kT          = pT ~> pT ~> pT
     --
-    cntTs = map (\i -> (cnt i, counterT)) [1..paramDepth param]
-    pairT = (pair, pT ~> (counterT ~> pT) ~> churchPairT)
+    pairT = (pair, pT ~> pT ~> churchPairT)
     k1T   = (k1, kT)
     k2T   = (k2, kT)
     pi1T  = (pi1, churchPairT ~> pT)
-    pi2T  = (pi2, counterT ~> churchPairT ~> pT)
+    pi2T  = (pi2, churchPairT ~> pT)
     --
-    cntiR = \i -> HORSRule (cnt i) ns $ var $ printf "n%i" i
-    cntRs = map cntiR [1..paramDepth param]
     pairR = HORSRule pair (["x","y","f"] ++ cs) $ app (var "f") ([var "x", var "y"] ++ csTerm)
-    k1R   = HORSRule k1 (["n","x","y"] ++ cs) $ app (var "x") csTerm
-    k2R   = HORSRule k2 (["n","x","y"] ++ cs) $ app (var "y") $ var "n" : csTerm
-    pi1R  = HORSRule pi1 ("p" : cs) $ app (var "p") $ [app (nonterminal k1) [nonterminal $ cnt 0]] ++ csTerm
-    pi2R  = HORSRule pi2 ("n" : "p" : cs) $ app (var "p") $ [app (nonterminal k2) [var "n"]] ++ csTerm
+    k1R   = HORSRule k1 (["x","y"] ++ cs) $ app (var "x") csTerm
+    k2R   = HORSRule k2 (["x","y"] ++ cs) $ app (var "y") csTerm
+    pi1R  = HORSRule pi1 ("p" : cs) $ app (var "p") $ [nonterminal k1] ++ csTerm
+    pi2R  = HORSRule pi2 ("p" : cs) $ app (var "p") $ [nonterminal k2] ++ csTerm
     --
     ns     = genXs "n" $ paramDepth param
     cs     = genXs "c" $ paramCntPM param

@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances,FlexibleInstances #-}
-module PMRS
---(
---  PMRSRule(..), PMRS,
+--module PMRS
+  
+--  (PMRSRule(..), PMRS,
 --  PMRSRules,
 
 --  mkPMRS, getTerminals, getNonterminals, getRules, getStartSymbol,
@@ -16,8 +16,8 @@ module PMRS
 --  pIsPMRule,
 
 --  step, nSteps, stepSingle,
---  reduce
---  )
+--  reduce)
+module PMRS
 where
 
 import qualified Data.MultiMap as MM
@@ -100,6 +100,11 @@ pIsPseudo (PMRSRule _ _ (Just (App (Var _) _)) _) = True
 pIsPseudo (PMRSRule _ _ (Just _              ) _) = False
 pIsPseudo (PMRSRule _ _ Nothing                _) = False
 
+-- | Checks whether the rule is a valid wPMRS rule.
+pIsWPMRSRule :: PMRSRule -> Bool
+pIsWPMRSRule (PMRSRule _ _ (Just p) t) = S.null $ S.intersection (fv p) (fv t)
+pIsWPMRSRule (PMRSRule _ _ Nothing  _) = True
+
 data PMRS = PMRS RankedAlphabet RankedAlphabet PMRSRules Symbol
 
 getTerminals :: PMRS -> RankedAlphabet
@@ -123,6 +128,12 @@ mkWPMRS t nt r s = do
   let s_srt = nt M.! s
   when (s_srt /= o) $ fail ("Start symbol " ++ show s ++ " has sort " ++ show s_srt ++ " but should have o")
   mkPMRS t nt r s
+
+-- | Checks whether the given PMRS is a wPMRS, i.e.,
+-- it does not use the variables defined in the patterns
+-- on the RHSs.
+isWPMRS :: PMRS -> Bool
+isWPMRS (PMRS _ _ r _) = all pIsWPMRSRule $ concat $ MM.elems r
 
 mkPMRS :: Monad m => RankedAlphabet -> RankedAlphabet -> PMRSRules -> Symbol -> m PMRS
 mkPMRS t nt r s = do -- TODO Check if rule for start symbol have arity 0

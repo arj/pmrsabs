@@ -110,7 +110,7 @@ horsFromGenericRules :: [GenericRule] -> HORS
 horsFromGenericRules rules = mkUntypedHORS rs s
   where
     (GRHORS s _ _)  = head rules
-    rs = horsRules $ map transformRule rules
+    rs = mkHorsRules $ map transformRule rules
     transformRule (GRHORS f xs t) = HORSRule f xs $ genericTermToTerm xs t
 
 attFromGenericRules :: [(String,String,[(Int, String)])] -> ATT

@@ -326,7 +326,7 @@ hors1 = mkHORS sigma nonterminals r "S"
                                 ,ssN
                                 ,ssListN]
     r :: HORSRules
-    r = horsRules [HORSRule "S" [] $ listN
+    r = mkHorsRules [HORSRule "S" [] $ listN
                   ,HORSRule "N"  [] $ app s [z]
                   ,HORSRule "ListN" [] $ mkCons n listN
                   ]
@@ -344,7 +344,7 @@ horsndet = mkHORS sigma nonterminals r "S"
                                 ,ssN
                                 ,ssListN]
     r :: HORSRules
-    r = horsRules [HORSRule "S" [] $ listN
+    r = mkHorsRules [HORSRule "S" [] $ listN
                   ,HORSRule "N"  [] $ app s [n]
                   ,HORSRule "N"  [] $ z
                   ,HORSRule "ListN" [] $ mkCons n listN

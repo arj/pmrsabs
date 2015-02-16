@@ -15,6 +15,7 @@ import Aux (prettyPrint)
 import Parser (parseHORSATTfromFile)
 import Term (Term, ntCut)
 import qualified Preface as P
+import qualified WPMRSTransformer ()
 
 putErr :: String -> IO ()
 putErr s = error $ "Error: " ++ s
