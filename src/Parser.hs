@@ -65,13 +65,13 @@ genericTermToTerm xs (GenApp (GenTermVar t) gts) =
     rest = map (genericTermToTerm xs) gts
 
 genericPatternToPattern :: GenericTerm -> Term
-genericPatternToPattern t@(GenApp (GenNT n) gts) = error $ "Nonterminals in patterns are not allowed: " ++ (show t)
 genericPatternToPattern (GenApp (GenTermVar t) gts) =
-  if head t == '!'
-    then app (var t) $ rest
-    else app (terminal t) $ rest
+  case t of
+    '!':x -> app (var x) $ rest
+    _ -> app (terminal t) $ rest
   where
     rest = map genericPatternToPattern gts
+genericPatternToPattern t = error $ "Nonterminals in patterns are not allowed: " ++ (show t)
 
 assignFreshVar :: Symbol -> State Int (Symbol, Sort)
 assignFreshVar x = do
@@ -143,7 +143,7 @@ identifier = many (alphaNum <|> char '_')
 
 nonterm :: GenParser Char st String
 nonterm = do
-  f <- upper
+  f <- upper <|> char '!'
   r <- identifier
   spaces
   return $ f : r
@@ -269,6 +269,9 @@ parseTreeGrammarATT = do
 
 parseHORSATTfromFile :: FilePath -> IO (Either ParseError (HORS,ATT))
 parseHORSATTfromFile file = parseFromFile parseHORSATT file
+
+parseTreeGrammarATTfromFile :: FilePath -> IO (Either ParseError (TG,ATT))
+parseTreeGrammarATTfromFile file = parseFromFile parseTreeGrammarATT file
 
 --parsePMRS :: String -> Either ParseError PMRS
 --parsePMRS = parse pmrs "(unknown)"

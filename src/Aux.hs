@@ -15,6 +15,10 @@ showMaybe :: Show a => Maybe a -> String
 showMaybe Nothing = ""
 showMaybe (Just p) = show p
 
+showMaybePrefix :: Show a => String -> Maybe a -> String
+showMaybePrefix _ Nothing = ""
+showMaybePrefix s (Just p) = s ++ show p
+
 class PrettyPrint a where
 	prettyPrint :: a -> String
 

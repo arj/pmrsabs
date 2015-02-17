@@ -12,7 +12,7 @@ import Automaton (Quantifier(..), attAddBr)
 import Options
 import Examples ()
 import Aux (prettyPrint)
-import Parser (parseHORSATTfromFile)
+import Parser (parseHORSATTfromFile, parseTreeGrammarATTfromFile)
 import Term (Term, ntCut)
 import qualified Preface as P
 import qualified WPMRSTransformer ()

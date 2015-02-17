@@ -62,7 +62,7 @@ getPMVariables pmrs = S.unions $ map extractPMVars rules
 type PMRSRules = Rules PMRSRule
 
 instance Show PMRSRule where
-  show (PMRSRule f xs p body) = unwords $ filter (not . null) [show f, unwords xs, showMaybe p,"=>",show body]
+  show (PMRSRule f xs p body) = unwords $ filter (not . null) [show f, unwords xs, showMaybePrefix "|" p,"=>",show body]
 
 listToRules :: [PMRSRule] -> PMRSRules
 listToRules lst = MM.fromList $ map fPairUp lst
@@ -175,7 +175,7 @@ prettyPrintPMRS (PMRS _ _ r s) = do
   tell "\n"
 
 prettyPrintRule :: PMRSRule -> Writer String ()
-prettyPrintRule (PMRSRule f xs p body) = tell $ unwords $ filter (not . null) [f, unwords xs, showMaybe p,"=",show body]
+prettyPrintRule (PMRSRule f xs p body) = tell $ unwords $ filter (not . null) [f, unwords xs, showMaybePrefix "|" p,"=",show body]
 
 prettyPrintRules :: Symbol -> PMRSRules -> Writer String ()
 prettyPrintRules s r = do
