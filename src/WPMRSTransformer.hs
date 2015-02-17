@@ -12,7 +12,7 @@ import qualified Data.Set as S
 import CommonRS (rulesToRuleList)
 import Aux (traceIt)
 import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs,isomorphic)
-import Sorts (ar,(~>),createSort,RankedAlphabet,Symbol,Sort(Base))
+import Sorts (ar,o,(~>),createSort,RankedAlphabet,Symbol,Sort(Base))
 import PMRS (PMRS(..), PMRSRules(..), PMRSRule(..), isWPMRS, patternDomain)
 import HORS (HORS(..), HORSRule(..), mkHorsRules, mkHORS, mkUntypedHORS)
 
@@ -62,9 +62,8 @@ mkStart param s = (s', ra, [rule])
   where
     s'   = "S_HORS" ++ paramSuffix param
     ra   = assert False undefined
-    bots = replicate (paramCntPM param) $ paramBot param
     npi1   = nonterminal $ "Pi1" ++ paramSuffix param
-    rule = HORSRule s' [] $ app npi1 $ (terminal s) : bots
+    rule = HORSRule s' [] $ app npi1 $ [terminal s]
 
 rulesForRules :: Param -> (Term -> Int) -> PMRSRules -> (RankedAlphabet, [HORSRule])
 rulesForRules param pm rules = (ra, rs)
@@ -83,6 +82,9 @@ mkRuleForRule param pm rs@(PMRSRule f xs (Just _) _:_) = (ra, [r1,r2])
     f_caseTerm = nonterminal f_case
     parg = "parg" ++ suffix
     selector = "f" ++ suffix
+    m k = Nt $ "T_" ++ k ++ suffix
+    --
+    args = var selector : csTerm
     --
     cs     = genXs "c" $ paramCntPM param
     csTerm = genXsTerm "c" $ paramCntPM param
@@ -95,9 +97,11 @@ mkRuleForRule param pm rs@(PMRSRule f xs (Just _) _:_) = (ra, [r1,r2])
     --
     patternsLookupMap = map (\(PMRSRule _ _ (Just p) t) -> (pm p, t)) rs
     --
+
+    --
     createCases i =
         case lookup i patternsLookupMap of
-            Just t -> t
+            Just t -> appendArgs (substTerminals m t) args
             Nothing -> paramBot param
     --
     r2 = HORSRule f_case xs' $ app (var parg) $ map createCases [1..(paramCntPM param)]
@@ -179,18 +183,17 @@ terminalRules param k ksrt pm = (ra, [mk_k, case_k, r])
     cs     = genXs "c" n
     csTerm = genXsTerm "c" n
     --
-    (ra_mk_k,mk_k) = mkMkRule param k xs xsTerm cs csTerm
+    (ra_mk_k,mk_k) = mkMkRule param k xs xsTerm
     (ra_case_k, case_k) = mkCasekRule param k xs cs pm
 
 -- |Creates the making rule that creates a single terminal tree from its arguments.
--- We have: @Mk_k x1 ... xl c1 ... cn = k (x1 c1 ... cn) (xl c1 ... cn)@
-mkMkRule :: Param -> Symbol -> [String] -> [Term] -> [String] -> [Term] -> (RankedAlphabet, HORSRule)
-mkMkRule param k xs xsTerm cs csTerm = (ra, HORSRule f (xs ++ cs) t)
+-- We have: @Mk_k x1 ... xl = k x1 .. xl@
+mkMkRule :: Param -> Symbol -> [String] -> [Term] -> (RankedAlphabet, HORSRule)
+mkMkRule param k xs xsTerm = (ra, HORSRule f xs t)
   where
     ra  = M.singleton f $ assert False undefined
     f   = "Mk_" ++ k ++ paramSuffix param
-    t   = app (terminal k) $ xis
-    xis = map (\xi -> app xi csTerm) xsTerm
+    t   = app (terminal k) $ xsTerm
 
 -- |Creates the case rule that establishes new pattern matching for
 -- given subterms and a terminal.
@@ -220,7 +223,7 @@ auxRules param = (ra, rs)
     --
     pT       = createSort $ paramCntPM param
     churchPairT = (pT ~> pT ~> pT) ~> pT
-    kT          = pT ~> pT ~> pT
+    kT          = o ~> pT ~> pT
     --
     pairT = (pair, pT ~> pT ~> churchPairT)
     k1T   = (k1, kT)
@@ -229,9 +232,9 @@ auxRules param = (ra, rs)
     pi2T  = (pi2, churchPairT ~> pT)
     --
     pairR = HORSRule pair (["x","y","f"] ++ cs) $ app (var "f") ([var "x", var "y"] ++ csTerm)
-    k1R   = HORSRule k1 (["x","y"] ++ cs) $ app (var "x") csTerm
+    k1R   = HORSRule k1 (["x","y"] ++ cs) $ var "x"
     k2R   = HORSRule k2 (["x","y"] ++ cs) $ app (var "y") csTerm
-    pi1R  = HORSRule pi1 ("p" : cs) $ app (var "p") $ [nonterminal k1] ++ csTerm
+    pi1R  = HORSRule pi1 ["p"] $ app (var "p") $ nonterminal k1 : map (const $ terminal "bot") csTerm
     pi2R  = HORSRule pi2 ("p" : cs) $ app (var "p") $ [nonterminal k2] ++ csTerm
     --
     ns     = genXs "n" $ paramDepth param

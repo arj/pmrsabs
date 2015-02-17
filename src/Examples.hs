@@ -361,3 +361,25 @@ horsndet = mkHORS sigma nonterminals r "S"
                   ,HORSRule "ListN" [] $ mkCons n listN
                   ,HORSRule "ListN" [] $ nil
                   ]
+
+wpmrsSimple1 :: Monad m => m PMRS
+wpmrsSimple1 = mkPMRS sigma nonterminals r "S"
+  where
+    sigma :: RankedAlphabet
+    sigma = mkRankedAlphabet [sstrue
+                 ,ssfalse
+                 ,ssz,
+                 sss
+                 ]
+    nonterminals :: RankedAlphabet
+    nonterminals = mkRankedAlphabet [ssMain
+                                ,ssNz
+                                ,ssS
+                                ,ssN
+                                ]
+    r :: PMRSRules
+    r = listToRules [PMRSRule "Nz" [] (Just z) $ false
+                   ,PMRSRule "Nz" [] (Just $ app s [c]) $ true
+                   ,PMRSRule "S" [] Nothing $ app nz [n]
+                   ,PMRSRule "N"  [] Nothing $ app s [z]
+                   ]

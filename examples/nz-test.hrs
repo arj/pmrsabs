@@ -1,0 +1,24 @@
+%BEGING
+S_HORS = (Pi1 S).
+Case_s x1 c1 c2 c3 c4 = undefined.
+Just_false c1 c2 c3 c4 = c1.
+Just_true c1 c2 c3 c4 = c3.
+Just_z c1 c2 c3 c4 = c4.
+K1 x y c1 c2 c3 c4 = x.
+K2 x y c1 c2 c3 c4 = (y c1 c2 c3 c4).
+Mk_s x1 = (s x1).
+N f c1 c2 c3 c4 = (T_s T_z f c1 c2 c3 c4).
+Nz parg f c1 c2 c3 c4 = (Nz_case (Pi2 parg) f c1 c2 c3 c4).
+Nz_case parg f c1 c2 c3 c4 = (parg bot (T_true f c1 c2 c3 c4) bot (T_false f c1 c2 c3 c4)).
+Pair x y f c1 c2 c3 c4 = (f x y c1 c2 c3 c4).
+Pi1 p = (p K1 bot bot bot bot).
+Pi2 p c1 c2 c3 c4 = (p K2 c1 c2 c3 c4).
+S f c1 c2 c3 c4 = (Nz N f c1 c2 c3 c4).
+T_false f c1 c2 c3 c4 = (Pair false Just_false f c1 c2 c3 c4).
+T_s x1 f c1 c2 c3 c4 = (Pair (Mk_s (Pi1 x1)) (Case_s (Pi2 x1)) f c1 c2 c3 c4).
+T_true f c1 c2 c3 c4 = (Pair true Just_true f c1 c2 c3 c4).
+T_z f c1 c2 c3 c4 = (Pair z Just_z f c1 c2 c3 c4).
+%ENDG
+%BEGINA
+q0 br ->.
+%ENDA
