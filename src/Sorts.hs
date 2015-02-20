@@ -8,6 +8,7 @@ module Sorts (
   ar,
   sortToList, sortFromList,
   mkRankedAlphabet, rankedAlphabetToSet,
+  closeRankedAlphabet,
   replaceLastArg,
   unify, unify', unboundToBase,
   substTB
@@ -18,6 +19,8 @@ import qualified Data.Set as S
 import Data.Map (Map)
 import qualified Data.Map as M
 import Control.Arrow (second)
+
+import Aux (traceIt)
 
 type Symbol = String
 
@@ -89,7 +92,7 @@ data SortedSymbol = SortedSymbol
                   deriving (Eq,Ord)
 
 instance Show SortedSymbol where
-  show (SortedSymbol s _srt) = s-- ++ ":" ++ show srt
+  show (SortedSymbol s _srt) = s ++ ":" ++ show _srt
 
 -- ** Definition of a ranked alphabet
 
@@ -104,6 +107,14 @@ mkRankedAlphabet = foldl f M.empty
 -- | Creates a set of sorted symbols from a ranked alphabet.
 rankedAlphabetToSet :: RankedAlphabet -> Set SortedSymbol
 rankedAlphabetToSet = S.fromList . map (uncurry SortedSymbol) . M.toList
+
+closeRankedAlphabet :: RankedAlphabet -> RankedAlphabet
+closeRankedAlphabet = M.map f
+  where
+    f (Base) = Base
+    f (Data) = Data
+    f (Arrow s1 s2) = Arrow (f s1) (f s2)
+    f (SVar _) = Base
 
 -- | Removes all symbols of arity 0 from the ranked alphabet.
 removeSigma0 :: RankedAlphabet -> RankedAlphabet
@@ -147,7 +158,7 @@ substTB sub tb = map (second f) tb
     f srt = foldl (\ack (x,s) -> subst x s ack) srt sub
 
 unify :: SortConstraints -> Substitution
-unify tc = unboundToBase $ foldl (\ack (x,s) -> substS x s ack) res res
+unify tc = foldl (\ack (x,s) -> substS x s ack) res res
   where
     res = unify' tc
 
@@ -171,4 +182,4 @@ unify' ((s1,s2):rest) =
         (t          , SVar x       ) -> if x `S.member` fv t
                                         then error "Not unifiable"
                                         else (x,t) : (unify' $ substSC x t rest)
-        (_          , _            ) -> error "Not unifiable"
+        (_          , _            ) -> error $ "Not unifiable: " ++ show s1 ++ " = " ++ show s2

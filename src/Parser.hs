@@ -7,17 +7,18 @@ import Text.ParserCombinators.Parsec hiding (State)
 import Text.Printf (printf)
 import Data.Char (isUpper)
 import Data.Map ((!))
-import qualified Data.Map as M (unions, fromList, toList)
+import qualified Data.Map as M (unions, fromList, toList, partitionWithKey)
 import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 import Data.Set (Set)
 import qualified Data.Set as S (toList, unions, insert, fromList)
 
+import Aux (traceIt)
 import Automaton (ATT,mkATT)
 import PMRS
 import HORS
-import Sorts (Symbol, o, Sort(..), sortFromList, substTB, unify)
-import Term (Term(..), var, app, terminal, nonterminal, TypeBinding, TypeConstraints, bump, getT)
+import Sorts (Symbol, o, Sort(..), sortFromList, substTB, unify, closeRankedAlphabet)
+import Term (Term(..), var, app, terminal, nonterminal, TypeBinding, TypeConstraints, bump, getT, fv')
 
 data GenericRule = GRPMRS String [String] GenericTerm GenericTerm
                  | GRHORS String [String] GenericTerm
@@ -79,7 +80,7 @@ assignFreshVar x = do
   return (x, SVar $ "t" ++ i)
 
 typer :: [GenericRule] -> TypeBinding
-typer rs = evalState (typer' rs) 0
+typer rs = closeRankedAlphabet $ evalState (typer' rs) 0
 
 initialTypeBindings :: GenericRule -> State Int TypeBinding
 initialTypeBindings (GRHORS f xs t) = do
@@ -88,6 +89,13 @@ initialTypeBindings (GRHORS f xs t) = do
   let args = map snd tcXs
   let tcF  = (f, sortFromList $ args ++ [o])
   return $ M.fromList $ tcF : tcXs ++ tcTs
+initialTypeBindings (GRPMRS f xs p t) = do
+  tcXs <- mapM assignFreshVar xs
+  tcTs <- mapM assignFreshVar $ S.toList $ getT $ genericTermToTerm xs t
+  let args = map snd tcXs
+  let tcF  = (f, sortFromList $ args ++ [o])
+  let tcP = zip (fv' $ genericPatternToPattern p) (repeat o)
+  return $ M.fromList $ tcF : tcXs ++ tcTs ++ tcP
 
 typer' :: [GenericRule] -> State Int TypeBinding
 typer' rs = do
@@ -107,8 +115,8 @@ createConstraints :: TypeBinding -> Term -> State Int (Sort, TypeConstraints)
 createConstraints gamma (App h ts) = do
   let hType = gamma ! (show h) -- TODO Error handling!
   (symbols, gammas) <- unzip <$> mapM (createConstraints gamma) ts
-  x <- show <$> bump
-  let ret = SVar $ "t" ++ x
+  alpha <- show <$> bump
+  let ret = SVar $ "t" ++ alpha
   let hType2 = sortFromList $ symbols ++ [ret]
   return $ (ret, S.insert (hType, hType2) $ S.unions gammas)
 
@@ -121,11 +129,15 @@ pmrsFromGenericRules rules = mkUntypedPMRS rs s
     transformRule (GRPMRS f xs p t) = PMRSRule f xs (Just $ genericPatternToPattern p) $ genericTermToTerm xs t
 
 horsFromGenericRules :: [GenericRule] -> HORS
-horsFromGenericRules rules = mkUntypedHORS rs s
+horsFromGenericRules rules = mkHORSErr t nt rs s
   where
+    (nt, t)         = M.partitionWithKey isNonterminalBinding $ typer rules
     (GRHORS s _ _)  = head rules
     rs = mkHorsRules $ map transformRule rules
     transformRule (GRHORS f xs t) = HORSRule f xs $ genericTermToTerm xs t
+
+isNonterminalBinding :: Symbol -> a -> Bool
+isNonterminalBinding (x:_) _ = isUpper x
 
 attFromGenericRules :: [(String,String,[(Int, String)])] -> ATT
 attFromGenericRules rs = mkATT delta q0
@@ -196,23 +208,29 @@ horsRule = do
   t <- term
   return $ GRHORS s xs t
 
-parseHors :: GenParser Char st HORS
-parseHors = do
+parseGenericHors :: GenParser Char st [GenericRule]
+parseGenericHors = do
   string "%BEGING"
   newline
   spaces
   r <- endBy1 (try horsRule) (char '.' >> newline >> spaces)
   string "%ENDG"
-  return $ horsFromGenericRules r
+  return r
 
-parsePmrs :: GenParser Char st PMRS
-parsePmrs = do
+parseHors :: GenParser Char st HORS
+parseHors = horsFromGenericRules <$> parseGenericHors
+
+parseGenericPmrs :: GenParser Char st [GenericRule]
+parseGenericPmrs = do
   string "%BEGINPMRS"
   newline
   spaces
   r <- endBy1 (((try horsRule) <|> pmrsRule)) (char '.' >> newline >> spaces)
   string "%ENDPMRS"
-  return $ pmrsFromGenericRules r
+  return r
+
+parsePmrs :: GenParser Char st PMRS
+parsePmrs = pmrsFromGenericRules <$> parseGenericPmrs
 
 parseQ :: GenParser Char st String
 parseQ = do

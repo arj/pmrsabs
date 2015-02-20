@@ -7,6 +7,7 @@ module HORS (
   horsRulesAsList,
   HORS(..),
   mkHORS,
+  mkHORSErr,
   mkUntypedHORS,
   determinizeHORS,
   determinizeUntypedHORS,
@@ -69,6 +70,17 @@ mkHORS t nt rs s = do
       else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)
   when (not $ MM.member rs s) $ fail ("No rule for the start symbol: " ++ show s)
   return $ HORS t nt rs s
+
+newtype RM s = RM { runRM :: s }
+
+instance Monad RM where
+  (>>=) (RM a) f = f a
+  (>>) a b = b
+  return v = RM v
+  fail s = error s
+
+mkHORSErr :: RankedAlphabet -> RankedAlphabet -> HORSRules -> Symbol -> HORS
+mkHORSErr t nt rs s = runRM $ mkHORS t nt rs s
 
 mkUntypedHORS :: HORSRules -> Symbol -> HORS
 mkUntypedHORS rs s = HORS M.empty M.empty rs s
