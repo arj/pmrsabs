@@ -30,6 +30,7 @@ import Control.Monad (when, forM_)
 import Control.Monad.Writer (Writer, tell, execWriter)
 import Control.Exception (assert)
 
+import HORS (HORS(..), HORSRule(..))
 import Aux
 import Term
 import Sorts
@@ -149,6 +150,26 @@ mkPMRS t nt r s = do -- TODO Check if rule for start symbol have arity 0
 
 mkUntypedPMRS :: PMRSRules -> Symbol -> PMRS
 mkUntypedPMRS rs s = PMRS M.empty M.empty rs s
+
+addUntypedHORS :: PMRS -> HORS -> PMRS
+addUntypedHORS (PMRS _ _ prs ps) (HORS _ _ hrs _) = mkUntypedPMRS rs' ps
+  where
+    rs' = MM.union prs $ MM.map horsToPMRSrule hrs
+    horsToPMRSrule (HORSRule f xs t) = PMRSRule f xs Nothing t
+
+-- |Extract terminal and nonterminal symbols in the form of a ranked alphabet.
+-- The sort is defined as haskell's undefined, so don't access it!
+-- (I know that is bad style...)
+extractUntypedSymbols :: PMRSRules -> (RankedAlphabet, RankedAlphabet)
+extractUntypedSymbols rules = (M.unions terminals, M.unions nonterminals)
+  where
+    (terminals, nonterminals) = unzip $ map f $ rulesToRuleList rules
+    f (PMRSRule _ _ _ t) =
+      let ts  = S.toList $ getT t in
+      let nts = S.toList $ getN t in
+      let tssort = zipWith SortedSymbol ts $ repeat (assert False undefined) in
+      let ntsort = zipWith SortedSymbol nts $ repeat (assert False undefined) in
+      (mkRankedAlphabet tssort, mkRankedAlphabet ntsort)
 
 -- | Removes rules if they are not used anywhere.
 -- Could be improved by doing a reachability analysis.

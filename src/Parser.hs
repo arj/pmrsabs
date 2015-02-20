@@ -78,6 +78,9 @@ assignFreshVar x = do
   i <- show <$> bump
   return (x, SVar $ "t" ++ i)
 
+typer :: [GenericRule] -> TypeBinding
+typer rs = evalState (typer' rs) 0
+
 initialTypeBindings :: GenericRule -> State Int TypeBinding
 initialTypeBindings (GRHORS f xs t) = do
   tcXs <- mapM assignFreshVar xs
@@ -85,9 +88,6 @@ initialTypeBindings (GRHORS f xs t) = do
   let args = map snd tcXs
   let tcF  = (f, sortFromList $ args ++ [o])
   return $ M.fromList $ tcF : tcXs ++ tcTs
-
-typer :: [GenericRule] -> TypeBinding
-typer rs = evalState (typer' rs) 0
 
 typer' :: [GenericRule] -> State Int TypeBinding
 typer' rs = do
@@ -267,14 +267,20 @@ parseTreeGrammarATT = do
   att <- parseAtt
   return (grammar, att)
 
+parsePMRSHORSATT :: GenParser Char st (PMRS, HORS, ATT)
+parsePMRSHORSATT = do
+      pmrs <- parsePmrs
+      spaces
+      hors <- parseHors
+      spaces
+      att  <- parseAtt
+      return (pmrs, hors, att)
+
 parseHORSATTfromFile :: FilePath -> IO (Either ParseError (HORS,ATT))
-parseHORSATTfromFile file = parseFromFile parseHORSATT file
+parseHORSATTfromFile = parseFromFile parseHORSATT
 
 parseTreeGrammarATTfromFile :: FilePath -> IO (Either ParseError (TG,ATT))
-parseTreeGrammarATTfromFile file = parseFromFile parseTreeGrammarATT file
+parseTreeGrammarATTfromFile = parseFromFile parseTreeGrammarATT
 
---parsePMRS :: String -> Either ParseError PMRS
---parsePMRS = parse pmrs "(unknown)"
---
---parseHORS :: String -> Either ParseError HORS
---parseHORS = parse hors "(unknown)"
+parsePMRSHORSATTfromFile :: FilePath -> IO (Either ParseError (PMRS, HORS, ATT))
+parsePMRSHORSATTfromFile = parseFromFile parsePMRSHORSATT

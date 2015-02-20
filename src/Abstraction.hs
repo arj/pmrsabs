@@ -167,10 +167,8 @@ headToUpper :: String -> String
 headToUpper []     = []
 headToUpper (x:xs) = toUpper x : xs
 
--- | Generates a weak PMRS from a start symbol (0-order HORS included into the PMRS),
--- and a PMRS.
-wPMRS :: Monad m => Symbol -> PMRS -> m PMRS
-wPMRS gs pmrs = mkWPMRS sig nt' rs' s'
+mkWPMRSInner :: Symbol -> PMRS -> (RankedAlphabet, RankedAlphabet, PMRSRules, Symbol)
+mkWPMRSInner gs pmrs = (sig,nt',rs',s')
   where
     sig    = getTerminals pmrs
     nt     = getNonterminals pmrs
@@ -180,7 +178,7 @@ wPMRS gs pmrs = mkWPMRS sig nt' rs' s'
     rs'    = MM.insert s' start $ (weakPMrules rs) `MM.union` instrs
     bnd    = bindingAnalysis gs pmrs SM.empty
     --
-    s'     = freshVar (M.keys nt) "S"
+    s'     = freshVar (M.keys nt) "S_WPMRS_S"
     nt_s'  = M.singleton s' o
     start  = PMRSRule s' [] Nothing $ app (nonterminal s) [nonterminal gs]
     --
@@ -189,3 +187,17 @@ wPMRS gs pmrs = mkWPMRS sig nt' rs' s'
     bndpm  = SM.filterWithKey (\(k,_) -> S.member k pmvars) bnd
     --
     (instnt,instrs) = instantiationRules bndpm
+
+-- | Generates a weak PMRS from a start symbol (0-order HORS included into the PMRS),
+-- and a PMRS.
+wPMRS :: Monad m => Symbol -> PMRS -> m PMRS
+wPMRS gs pmrs = mkWPMRS sig nt' rs' s'
+  where
+    (sig,nt',rs',s') = mkWPMRSInner gs pmrs
+
+-- | Generates an untyped weak PMRS from a start symbol (0-order HORS included into the PMRS),
+-- and a PMRS.
+untypedwPMRS :: Symbol -> PMRS -> PMRS
+untypedwPMRS gs pmrs = mkUntypedPMRS rs' s'
+  where
+    (_sig,_nt',rs',s') = mkWPMRSInner gs pmrs

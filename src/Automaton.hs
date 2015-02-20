@@ -6,7 +6,8 @@ module Automaton (
   PrettyPrint(..),
   attStates,
   Quantifier(..),
-  attAddBr
+  attAddBr,
+  determinizeATT
 ) where
 
 import Data.List
@@ -79,3 +80,6 @@ attAddBr quantifier br att@(ATT delta q0) = ATT delta' q0
     addBr q = case quantifier of
       Universal -> M.singleton (q,br) $ S.fromList [(1,q),(2,q)]
       Existential -> M.fromList [((q,br), S.singleton (1,q)), ((q,br), S.singleton (2,q))]
+
+determinizeATT :: Quantifier -> Symbol -> ATT -> ATT
+determinizeATT = attAddBr

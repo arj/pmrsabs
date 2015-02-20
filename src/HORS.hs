@@ -11,6 +11,7 @@ module HORS (
   determinizeHORS,
   determinizeUntypedHORS,
   findCEx,
+  CEx,
   removeBrFromCEx,
   stepNDHORS,
   startSymbol
@@ -213,10 +214,10 @@ stepAutomatonInner p qs s ts = map intStatePairToCfg qs
 -- the function returns the set of terms that it can be reduced to.
 -- The set might be empty!
 reduce :: HORS -> (Symbol,[Term]) -> Term
-reduce (HORS _ _ rs _) (s,ts) =
+reduce hors@(HORS _ _ rs _) (s,ts) =
   case matchingRules rs s of
     [r] -> applyRule ts r
-    []  -> error "Error in HORS: no reduction possible"
+    []  -> error $ "Error in HORS. No possible reduction for term: " ++ show (app (nonterminal s) ts) ++ " in RS:\n" ++ prettyPrint hors
     _   -> error $ printf "Nondeterministic HORS! reducing %s with %s" (show (s,ts)) (show rs)
 
 -- | Given a rule and a list of arguments

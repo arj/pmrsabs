@@ -12,6 +12,7 @@ import Automaton (Quantifier(..), attAddBr)
 import Options
 import Examples ()
 import Aux (prettyPrint)
+import PMRSVerification ()
 import Parser (parseHORSATTfromFile, parseTreeGrammarATTfromFile)
 import Term (Term, ntCut)
 import qualified Preface as P

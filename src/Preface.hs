@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, OverloadedStrings #-}
 
 module Preface (
-  ATT(..), Answer(..),
+  ATT(..),
   check,
   version,
   versionCheck,
@@ -41,9 +41,6 @@ class PrettyPrint a => PrefaceGrammar a where
 instance PrefaceGrammar PMRS where
 instance PrefaceGrammar RSFD where
 instance PrefaceGrammar HORS where
-
-data Answer = Accepted
-            | Rejected Term
 
 -- | Calls Preface which checks whether the given ATT accepts
 -- the tree produced by the grammar and returns.

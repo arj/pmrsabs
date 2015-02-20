@@ -13,7 +13,7 @@ import CommonRS (rulesToRuleList)
 import Aux (traceIt)
 import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs,isomorphic)
 import Sorts (ar,o,(~>),createSort,RankedAlphabet,Symbol,Sort(Base))
-import PMRS (PMRS(..), PMRSRules(..), PMRSRule(..), isWPMRS, patternDomain)
+import PMRS (PMRS(..), PMRSRules(..), PMRSRule(..), isWPMRS, patternDomain, extractUntypedSymbols)
 import HORS (HORS(..), HORSRule(..), mkHorsRules, mkHORS, mkUntypedHORS)
 
 fromPMRS :: Monad m => PMRS -> m HORS
@@ -63,7 +63,7 @@ mkStart param s = (s', ra, [rule])
     s'   = "S_HORS" ++ paramSuffix param
     ra   = assert False undefined
     npi1   = nonterminal $ "Pi1" ++ paramSuffix param
-    rule = HORSRule s' [] $ app npi1 $ [terminal s]
+    rule = HORSRule s' [] $ app npi1 $ [nonterminal s]
 
 rulesForRules :: Param -> (Term -> Int) -> PMRSRules -> (RankedAlphabet, [HORSRule])
 rulesForRules param pm rules = (ra, rs)
