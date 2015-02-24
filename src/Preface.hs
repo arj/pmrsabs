@@ -33,7 +33,6 @@ import Aux
 import PMRS
 import HORS
 import RSFD
-import Term
 import Automaton
 
 class PrettyPrint a => PrefaceGrammar a where

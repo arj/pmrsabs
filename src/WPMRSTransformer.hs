@@ -9,11 +9,9 @@ import qualified Data.MultiMap as MM
 import Text.Printf (printf)
 import qualified Data.Set as S
 
-import CommonRS (rulesToRuleList)
-import Aux (traceIt)
 import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs,isomorphic)
 import Sorts (ar,o,(~>),createSort,RankedAlphabet,Symbol,Sort(Base))
-import PMRS (PMRS(..), PMRSRules(..), PMRSRule(..), isWPMRS, patternDomain, extractUntypedSymbols)
+import PMRS (PMRS(..), PMRSRules, PMRSRule(..), isWPMRS, patternDomain)
 import HORS (HORS(..), HORSRule(..), mkHorsRules, mkHORS, mkUntypedHORS)
 
 fromPMRS :: Monad m => PMRS -> m HORS
@@ -52,6 +50,7 @@ data Param = Param { paramDepth :: Int
                    , paramBot :: Term
                    }
 
+simpleParam :: Param
 simpleParam = Param 1 4 "" (terminal "bot")
 
 idPair :: Symbol
@@ -106,7 +105,7 @@ mkRuleForRule param pm rs@(PMRSRule f xs (Just _) _:_) = (ra, [r1,r2])
     --
     r2 = HORSRule f_case xs' $ app (var parg) $ map createCases [1..(paramCntPM param)]
 
-mkRuleForRule param pm rs@(PMRSRule _ _  Nothing  _:_) = (undefined, map horsMap rs)
+mkRuleForRule param _pm rs@(PMRSRule _ _  Nothing  _:_) = (undefined, map horsMap rs)
   where
     suffix = paramSuffix param
     m k = Nt $ "T_" ++ k ++ suffix
@@ -237,7 +236,7 @@ auxRules param = (ra, rs)
     pi1R  = HORSRule pi1 ["p"] $ app (var "p") $ nonterminal k1 : map (const $ terminal "bot") csTerm
     pi2R  = HORSRule pi2 ("p" : cs) $ app (var "p") $ [nonterminal k2] ++ csTerm
     --
-    ns     = genXs "n" $ paramDepth param
+    -- ns     = genXs "n" $ paramDepth param
     cs     = genXs "c" $ paramCntPM param
     csTerm = genXsTerm "c" $ paramCntPM param
 

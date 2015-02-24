@@ -1,0 +1,11 @@
+%BEGING
+S = F0 F1 G0.
+F0 f x1 = f x1.
+F1 x = x.
+G0 = c.
+%ENDG
+%BEGINA
+q0 a -> (1,q1).
+q1 a -> (1,q0).
+q0 b -> .
+%ENDA

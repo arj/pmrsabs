@@ -102,8 +102,10 @@ typer' rs = do
   tb <- M.unions <$> mapM initialTypeBindings rs
   tcs <- mapM (typerInner tb) rs
   let constraints = S.unions tcs
-  let sbst = unify $ S.toList constraints
-  return $ M.fromList $ substTB sbst $ M.toList tb
+  let eithersbst = unify $ S.toList constraints
+  case eithersbst of
+    Left err -> error $ "Error in typer\n" ++ show tb ++ "\n" ++ show constraints ++ "\n" ++ err
+    Right sbst -> return $ M.fromList $ substTB sbst $ M.toList tb
 
 typerInner :: TypeBinding -> GenericRule -> State Int TypeConstraints
 typerInner gamma (GRHORS _ xs t') = do
@@ -121,8 +123,9 @@ createConstraints gamma (App h ts) = do
   return $ (ret, S.insert (hType, hType2) $ S.unions gammas)
 
 pmrsFromGenericRules :: [GenericRule] -> PMRS
-pmrsFromGenericRules rules = mkUntypedPMRS rs s
+pmrsFromGenericRules rules = mkPMRSErr nt t rs s
   where
+    (nt, t)         = M.partitionWithKey isNonterminalBinding $ typer rules
     (GRHORS s _ _)  = head rules
     rs = listToRules $ map transformRule rules
     transformRule (GRHORS f xs t) = PMRSRule f xs Nothing $ genericTermToTerm xs t
@@ -134,7 +137,7 @@ horsFromGenericRules rules = mkHORSErr t nt rs s
     (nt, t)         = M.partitionWithKey isNonterminalBinding $ typer rules
     (GRHORS s _ _)  = head rules
     rs = mkHorsRules $ map transformRule rules
-    transformRule (GRHORS f xs t) = HORSRule f xs $ genericTermToTerm xs t
+    transformRule (GRHORS f xs trm) = HORSRule f xs $ genericTermToTerm xs trm
 
 isNonterminalBinding :: Symbol -> a -> Bool
 isNonterminalBinding (x:_) _ = isUpper x

@@ -5,6 +5,14 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Debug.Trace (traceShow)
 
+newtype RM s = RM { runRM :: s }
+
+instance Monad RM where
+  (>>=) (RM a) f = f a
+  (>>) _ b = b
+  return v = RM v
+  fail s = error s
+
 traceIt :: Show a => a -> a
 traceIt a = traceShow (show a) a
 

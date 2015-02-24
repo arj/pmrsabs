@@ -157,10 +157,10 @@ substTB sub tb = map (second f) tb
     f :: Sort -> Sort
     f srt = foldl (\ack (x,s) -> subst x s ack) srt sub
 
-unify :: SortConstraints -> Substitution
-unify tc = foldl (\ack (x,s) -> substS x s ack) res res
-  where
-    res = unify' tc
+unify :: SortConstraints -> Either String Substitution
+unify tc = do
+  res <- unify' tc
+  return $ foldl (\ack (x,s) -> substS x s ack) res res
 
 unboundToBase :: Substitution -> Substitution
 unboundToBase s = map (second f) s
@@ -168,8 +168,8 @@ unboundToBase s = map (second f) s
     f (SVar _) = Base
     f t = t
 
-unify' :: SortConstraints -> Substitution
-unify' [] = []
+unify' :: SortConstraints -> Either String Substitution
+unify' [] = return []
 unify' ((s1,s2):rest) =
   if s1 == s2
     then unify' rest
@@ -177,9 +177,13 @@ unify' ((s1,s2):rest) =
       case (s1,s2) of
         (Arrow t1 t2, Arrow t1' t2') -> unify' $ [(t1,t1'),(t2,t2')] ++ rest
         (SVar x     , t            ) -> if x `S.member` fv t
-                                        then error "Not unifiable"
-                                        else (x,t) : (unify' $ substSC x t rest)
+                                        then Left $ "Not unifiable: " ++ show s1 ++ " = " ++ show s2 ++ "\n" ++ show rest
+                                        else do
+                                          res <- unify' $ substSC x t rest
+                                          return $ (x,t) : res
         (t          , SVar x       ) -> if x `S.member` fv t
-                                        then error "Not unifiable"
-                                        else (x,t) : (unify' $ substSC x t rest)
-        (_          , _            ) -> error $ "Not unifiable: " ++ show s1 ++ " = " ++ show s2
+                                        then Left $ "Not unifiable: " ++ show s1 ++ " = " ++ show s2 ++ "\n" ++ show rest
+                                        else do
+                                          res <- unify' $ substSC x t rest
+                                          return $ (x,t) : res
+        (_          , _            ) -> Left $ "Not unifiable: " ++ show s1 ++ " = " ++ show s2 ++ "\n" ++ show rest

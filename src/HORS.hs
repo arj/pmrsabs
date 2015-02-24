@@ -71,14 +71,6 @@ mkHORS t nt rs s = do
   when (not $ MM.member rs s) $ fail ("No rule for the start symbol: " ++ show s)
   return $ HORS t nt rs s
 
-newtype RM s = RM { runRM :: s }
-
-instance Monad RM where
-  (>>=) (RM a) f = f a
-  (>>) a b = b
-  return v = RM v
-  fail s = error s
-
 mkHORSErr :: RankedAlphabet -> RankedAlphabet -> HORSRules -> Symbol -> HORS
 mkHORSErr t nt rs s = runRM $ mkHORS t nt rs s
 
@@ -240,10 +232,10 @@ applyRule ts (HORSRule _ xs t) = substAll (zip xs ts) t
 stepDHORS :: HORS -> Term -> Term
 stepDHORS h (App (Nt n) ts) = reduce h (n,ts)
 stepDHORS h (App (T s) ts) = App (T s) $ map (stepDHORS h) ts -- mapFirstNt ts
-  where
-    mapFirstNt [] = []
-    mapFirstNt (t@(App (Nt _) _):rest) = stepDHORS h t : rest
-    mapFirstNt (t : rest) = stepDHORS h t : mapFirstNt rest
+  -- where
+  --   mapFirstNt [] = []
+  --   mapFirstNt (t@(App (Nt _) _):rest) = stepDHORS h t : rest
+  --   mapFirstNt (t : rest) = stepDHORS h t : mapFirstNt rest
 
 stepNDHORS :: HORS -> Int -> Term -> Term
 stepNDHORS h n t

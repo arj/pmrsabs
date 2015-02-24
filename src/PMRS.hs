@@ -148,6 +148,17 @@ mkPMRS t nt r s = do -- TODO Check if rule for start symbol have arity 0
       else fail ("The body of the rule " ++ show r ++ " is not of sort o but of sort " ++ show srt)
   return $ PMRS t nt r s
 
+addHORS :: Monad m => PMRS -> HORS -> m PMRS
+addHORS (PMRS pt pnt prs ps) (HORS ht hnt hrs _) = mkPMRS t nt rs' ps
+  where
+    t = M.union pt ht
+    nt = M.union pnt hnt
+    rs' = MM.union prs $ MM.map horsToPMRSrule hrs
+    horsToPMRSrule (HORSRule f xs term) = PMRSRule f xs Nothing term
+
+mkPMRSErr :: RankedAlphabet -> RankedAlphabet -> PMRSRules -> Symbol -> PMRS
+mkPMRSErr t nt rs s = runRM $ mkPMRS t nt rs s
+
 mkUntypedPMRS :: PMRSRules -> Symbol -> PMRS
 mkUntypedPMRS rs s = PMRS M.empty M.empty rs s
 
