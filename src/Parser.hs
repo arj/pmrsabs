@@ -93,7 +93,7 @@ initialTypeBindings (GRPMRS f xs p t) = do
   tcXs <- mapM assignFreshVar xs
   tcTs <- mapM assignFreshVar $ S.toList $ getT $ genericTermToTerm xs t
   let args = map snd tcXs
-  let tcF  = (f, sortFromList $ args ++ [o])
+  let tcF  = (f, sortFromList $ args ++ [o,o])
   let tcP = zip (fv' $ genericPatternToPattern p) (repeat o)
   return $ M.fromList $ tcF : tcXs ++ tcTs ++ tcP
 
@@ -108,7 +108,11 @@ typer' rs = do
     Right sbst -> return $ M.fromList $ substTB sbst $ M.toList tb
 
 typerInner :: TypeBinding -> GenericRule -> State Int TypeConstraints
-typerInner gamma (GRHORS _ xs t') = do
+typerInner gamma (GRHORS _ xs t') = typerInner' gamma xs t'
+typerInner gamma (GRPMRS _ xs _ t') = typerInner' gamma xs t'
+
+typerInner' :: TypeBinding -> [String] -> GenericTerm -> State Int TypeConstraints
+typerInner' gamma xs t' = do
   let t = genericTermToTerm xs t'
   (retVar, gamma') <- createConstraints gamma t
   return $ S.insert (retVar,o) gamma'
@@ -128,8 +132,8 @@ pmrsFromGenericRules rules = mkPMRSErr nt t rs s
     (nt, t)         = M.partitionWithKey isNonterminalBinding $ typer rules
     (GRHORS s _ _)  = head rules
     rs = listToRules $ map transformRule rules
-    transformRule (GRHORS f xs t) = PMRSRule f xs Nothing $ genericTermToTerm xs t
-    transformRule (GRPMRS f xs p t) = PMRSRule f xs (Just $ genericPatternToPattern p) $ genericTermToTerm xs t
+    transformRule (GRHORS f xs t') = PMRSRule f xs Nothing $ genericTermToTerm xs t'
+    transformRule (GRPMRS f xs p t') = PMRSRule f xs (Just $ genericPatternToPattern p) $ genericTermToTerm xs t'
 
 horsFromGenericRules :: [GenericRule] -> HORS
 horsFromGenericRules rules = mkHORSErr t nt rs s

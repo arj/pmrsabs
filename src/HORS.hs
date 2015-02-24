@@ -21,6 +21,7 @@ module HORS (
 import Data.List
 import Control.Monad
 import qualified Data.Map as M
+import Data.Map (Map)
 import qualified Data.MultiMap as MM
 import Control.Monad.Writer (Writer, tell, execWriter)
 
