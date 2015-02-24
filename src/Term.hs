@@ -192,7 +192,7 @@ type TypeBinding = Map String Sort
 typeCheck :: Monad m => TypeBinding -> Term -> m Sort
 typeCheck _   t@(Case _ []) = fail ("Case statement has no body: " ++ show t)
 typeCheck bnd t@(Case x ts) = do
-  let typeX = bnd M.! x
+  typeX <- maybe (fail $ "Looking up type for unknown variable: " ++ show x ++ " bnd:" ++ show bnd) return $ M.lookup x bnd
   when (typeX /= Data) $ fail ("In term " ++ show t ++ " the case variable must be of type d, but it is of type " ++ show typeX ++ " Binding: " ++ show bnd)
   typeTs <- mapM (typeCheck bnd) ts
   when (not $ allTheSame typeTs) $ fail ("In term " ++ show t ++ " the different branches have different types, namely: " ++ show typeTs)
