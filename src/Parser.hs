@@ -127,7 +127,7 @@ createConstraints gamma (App h ts) = do
   return $ (ret, S.insert (hType, hType2) $ S.unions gammas)
 
 pmrsFromGenericRules :: [GenericRule] -> PMRS
-pmrsFromGenericRules rules = mkPMRSErr nt t rs s
+pmrsFromGenericRules rules = mkPMRSErr t nt rs s
   where
     (nt, t)         = M.partitionWithKey isNonterminalBinding $ typer rules
     (GRHORS s _ _)  = head rules
