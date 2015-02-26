@@ -1,0 +1,41 @@
+%BEGING
+S_HORS_283937 = Pi1 (S_ bot bot bot bot bot bot).
+C f_283937 c1 c2 c3 c4 c5 c6 = (N f_283937 c1 c2 c3 c4 c5 c6).
+Case_cons_283937 x1 x2 c1 c2 c3 c4 c5 c6 = undefined.
+Case_s_283937 x1 c1 c2 c3 c4 c5 c6 = undefined.
+Filter p parg_283937 f_283937 c1 c2 c3 c4 c5 c6 = (Filter_case_283937 p (Pi2_283937 parg_283937) f_283937 c1 c2 c3 c4 c5 c6).
+Filter_case_283937 p parg_283937 f_283937 c1 c2 c3 c4 c5 c6 = (parg_283937 bot bot bot bot bot bot).
+If a b parg_283937 f_283937 c1 c2 c3 c4 c5 c6 = (If_case_283937 a b (Pi2_283937 parg_283937) f_283937 c1 c2 c3 c4 c5 c6).
+If_case_283937 a b parg_283937 f_283937 c1 c2 c3 c4 c5 c6 = (parg_283937 bot bot bot bot bot bot).
+Just_false_283937 c1 c2 c3 c4 c5 c6 = c0.
+Just_nil_283937 c1 c2 c3 c4 c5 c6 = c0.
+Just_true_283937 c1 c2 c3 c4 c5 c6 = c0.
+Just_z_283937 c1 c2 c3 c4 c5 c6 = c0.
+K1_283937 x y c1 c2 c3 c4 c5 c6 = (x c1 c2 c3 c4 c5 c6).
+K2_283937 x y c1 c2 c3 c4 c5 c6 = (y c1 c2 c3 c4 c5 c6).
+ListN f_283937 c1 c2 c3 c4 c5 c6 = (T_nil_283937 f_283937 c1 c2 c3 c4 c5 c6).
+ListN f_283937 c1 c2 c3 c4 c5 c6 = (T_cons_283937 N ListN f_283937 c1 c2 c3 c4 c5 c6).
+Main m f_283937 c1 c2 c3 c4 c5 c6 = (Filter Nz m f_283937 c1 c2 c3 c4 c5 c6).
+Mk_cons_283937 x1 x2 c1 c2 c3 c4 c5 c6 = (cons (x1 c1 c2 c3 c4 c5 c6) (x2 c1 c2 c3 c4 c5 c6)).
+Mk_s_283937 x1 c1 c2 c3 c4 c5 c6 = (s (x1 c1 c2 c3 c4 c5 c6)).
+N f_283937 c1 c2 c3 c4 c5 c6 = (T_z_283937 f_283937 c1 c2 c3 c4 c5 c6).
+N f_283937 c1 c2 c3 c4 c5 c6 = (T_s_283937 N f_283937 c1 c2 c3 c4 c5 c6).
+Nz parg_283937 f_283937 c1 c2 c3 c4 c5 c6 = (Nz_case_283937 (Pi2_283937 parg_283937) f_283937 c1 c2 c3 c4 c5 c6).
+Nz_case_283937 parg_283937 f_283937 c1 c2 c3 c4 c5 c6 = (parg_283937 bot bot bot bot bot bot).
+Pair_283937 x y f c1 c2 c3 c4 c5 c6 = (f x y c1 c2 c3 c4 c5 c6).
+Pi1_283937 p c1 c2 c3 c4 c5 c6 = (p K1_283937 c1 c2 c3 c4 c5 c6).
+Pi2_283937 p c1 c2 c3 c4 c5 c6 = (p K2_283937 c1 c2 c3 c4 c5 c6).
+S f_283937 c1 c2 c3 c4 c5 c6 = (ListN f_283937 c1 c2 c3 c4 c5 c6).
+S_ f_283937 c1 c2 c3 c4 c5 c6 = (Main S f_283937 c1 c2 c3 c4 c5 c6).
+T_cons_283937 x1 x2 f c1 c2 c3 c4 c5 c6 = (Pair_283937 (Mk_cons_283937 (Pi1_283937 x1) (Pi1_283937 x2)) (Case_cons_283937 (Pi2_283937 x1) (Pi2_283937 x2)) f c1 c2 c3 c4 c5 c6).
+T_false_283937 f_283937 c1 c2 c3 c4 c5 c6 = (Pair_283937 false Just_false_283937 f c1 c2 c3 c4 c5 c6).
+T_nil_283937 f_283937 c1 c2 c3 c4 c5 c6 = (Pair_283937 nil Just_nil_283937 f c1 c2 c3 c4 c5 c6).
+T_s_283937 x1 f c1 c2 c3 c4 c5 c6 = (Pair_283937 (Mk_s_283937 (Pi1_283937 x1)) (Case_s_283937 (Pi2_283937 x1)) f c1 c2 c3 c4 c5 c6).
+T_true_283937 f_283937 c1 c2 c3 c4 c5 c6 = (Pair_283937 true Just_true_283937 f c1 c2 c3 c4 c5 c6).
+T_z_283937 f_283937 c1 c2 c3 c4 c5 c6 = (Pair_283937 z Just_z_283937 f c1 c2 c3 c4 c5 c6).
+X f_283937 c1 c2 c3 c4 c5 c6 = (N f_283937 c1 c2 c3 c4 c5 c6).
+Xs f_283937 c1 c2 c3 c4 c5 c6 = (ListN f_283937 c1 c2 c3 c4 c5 c6).
+%ENDG
+%BEGINA
+q0 bot ->.
+%ENDA
