@@ -73,9 +73,7 @@ mkStart param s = (s', ra, [rule])
     s'   = "S_HORS" ++ paramSuffix param
     ra   = M.singleton s' o
     npi1 = nonterminal $ "Pi1" ++ paramSuffix param
-    bot  = paramBot param
-    cnt  = paramCntPM param
-    rule = HORSRule s' [] $ app npi1 $ [nonterminal s] ++ replicate cnt bot
+    rule = HORSRule s' [] $ app npi1 $ [nonterminal s]
 
 rulesForRules :: Param -> (Term -> Int) -> PMRSRules -> (RankedAlphabet, [HORSRule])
 rulesForRules param pm rules = (ra, rs)
@@ -254,7 +252,7 @@ auxRules param = (ra, rs)
     pairT = (pair, o ~> pT ~> churchPairT)
     k1T   = (k1, kT)
     k2T   = (k2, kT)
-    pi1T  = (pi1, churchPairT ~> pT)
+    pi1T  = (pi1, churchPairT ~> o)
     pi2T  = (pi2, churchPairT ~> pT)
     --
     pairR = HORSRule pair (["x","y","f"] ++ cs) $ app (var "f") ([var "x", var "y"] ++ csTerm)

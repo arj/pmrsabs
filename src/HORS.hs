@@ -15,7 +15,8 @@ module HORS (
   CEx,
   removeBrFromCEx,
   stepNDHORS,
-  startSymbol
+  startSymbol,
+  symbolType
   ) where
 
 import Data.List
@@ -42,6 +43,11 @@ type HORSRules = Rules HORSRule
 
 instance Show HORSRule where
   show (HORSRule f xs body) = unwords $ filter (not . null) [show f, unwords xs,"=>",show body]
+
+symbolType :: HORS -> Symbol -> Maybe Sort
+symbolType (HORS t nt _ _) f = M.lookup f m
+  where
+    m = M.union t nt
 
 mkHorsRules :: [HORSRule] -> HORSRules
 mkHorsRules lst = MM.fromList $ map fPairUp lst
