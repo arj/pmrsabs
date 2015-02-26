@@ -6,10 +6,8 @@ where
 import           Data.Set      (Set)
 import qualified Data.Set      as S
 import qualified Data.SetMap as SM
-import qualified Data.Map as M
 import           Control.Monad (liftM)
 
-import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 
 import           Abstraction

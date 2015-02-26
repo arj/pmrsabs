@@ -21,16 +21,13 @@ module HORS (
 import Data.List
 import Control.Monad
 import qualified Data.Map as M
-import Data.Map (Map)
 import qualified Data.MultiMap as MM
 import Control.Monad.Writer (Writer, tell, execWriter)
 
 import Text.Printf (printf)
 
-import Debug.Trace (trace)
-
 import Aux
-import Term (Head(..), Term(..), typeCheck, app, terminal, var, substAll, nonterminal)
+import Term (Head(..), Term(..), typeCheck, app, terminal, var, substAll, nonterminal, TypeBinding)
 import Sorts
 import CommonRS
 import Automaton
@@ -60,11 +57,18 @@ data HORS = HORS { horsSigma :: RankedAlphabet
 horsRulesAsList :: HORSRules -> [HORSRule]
 horsRulesAsList = concat . MM.elems
 
+typeOfVariables :: HORSRule -> RankedAlphabet -> TypeBinding
+typeOfVariables (HORSRule f xs _) ra = M.fromList xstypes
+  where
+    srt       = ra M.! f
+    types     = init $ sortToList srt
+    xstypes   = zip xs types
+
 mkHORS :: Monad m => RankedAlphabet -> RankedAlphabet -> HORSRules -> Symbol -> m HORS
 mkHORS t nt rs s = do
   let rules = concat $ MM.elems rs
   forM_ rules $ \r@(HORSRule _ _ b) -> do
-    let bnd = M.unions [t, nt]
+    let bnd = M.unions [t, nt, typeOfVariables r nt]
     srt <- typeCheck bnd $ b
     if srt == o
       then return ()

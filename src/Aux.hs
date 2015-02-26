@@ -60,3 +60,6 @@ lookupList _  n | n<0 = Nothing
 lookupList [] _ = Nothing
 lookupList (x:_) 0 = return x
 lookupList (_:xs) n = lookupList xs (n-1)
+
+uncurry4 :: (a -> b -> c -> d -> e) -> ((a, b, c, d) -> e)
+uncurry4 f (x, y, z, w) = f x y z w

@@ -9,38 +9,49 @@ import qualified Data.MultiMap as MM
 import Text.Printf (printf)
 import qualified Data.Set as S
 
+import Aux (uncurry4)
 import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs,isomorphic)
-import Sorts (ar,o,(~>),createSort,RankedAlphabet,Symbol,Sort(Base))
+import Sorts (ar,o,(~>),createSort,RankedAlphabet,Symbol,Sort(Base), sortFromList)
 import PMRS (PMRS(..), PMRSRules, PMRSRule(..), isWPMRS, patternDomain)
-import HORS (HORS(..), HORSRule(..), mkHorsRules, mkHORS, mkUntypedHORS)
+import HORS (HORS(..), HORSRule(..), HORSRules, mkHorsRules, mkHORS, mkUntypedHORS)
 
-fromPMRS :: Monad m => PMRS -> m HORS
-fromPMRS pmrs@(PMRS sigma n r s) =
+fromPMRSInner :: PMRS -> String -> (RankedAlphabet, RankedAlphabet, HORSRules, Symbol)
+fromPMRSInner pmrs@(PMRS sigma _ r s) suffix =
   if (not $ isWPMRS pmrs)
     then error "Cannot transform: PMRS is not a weak PMRS."
     else
       let patterns = patternDomain pmrs in
-      let param = Param 1 (S.size patterns) "" (terminal "bot") in -- TODO set prefix
+      let bots = "bot" ++ suffix in
+      let bot = terminal bots in
+      let param = Param 1 (S.size patterns) suffix bot in
       let pm = searchTerm patterns in
-      let (_nAux, rAux) = auxRules param in
-      let (_nTerminals, rTerminals) = rulesForTerminals param sigma pm in
-      let (_nRules, rRules) = rulesForRules param pm r in
+      let (nAux, rAux) = auxRules param in
+      let (nTerminals, rTerminals) = rulesForTerminals param sigma pm in
+      let (nRules, rRules) = rulesForRules param pm r in
       let (s', _nStart, rStart) = mkStart param s in
       let rules = rAux ++ rTerminals ++ rRules ++ rStart in
       let rs = mkHorsRules rules in
-      -- mkHORS sigma nTerminals rs "S"
-      return $ mkUntypedHORS rs s'
+      let nts = M.unions [nAux, nTerminals, nRules] in
+      let sigma' = M.insert bots o sigma in
+      (sigma',nts,rs,s')
   where
     searchTerm patterns t =
         let mapping = zip (S.toList patterns) [1..] in
         searchTerm' t mapping
     --
     searchTerm' :: Term -> [(Term, Int)] -> Int
-    searchTerm' _ [] = assert True undefined
+    searchTerm' _ [] = assert False undefined
     searchTerm' t ((ti,i):rs)
       | isomorphic t ti = i
       | otherwise       = searchTerm' t rs
-        
+
+fromPMRS :: Monad m => PMRS -> m HORS
+fromPMRS pmrs = uncurry4 mkHORS $ fromPMRSInner pmrs "" -- TODO set suffix
+
+fromUntypedPMRS :: PMRS -> HORS
+fromUntypedPMRS pmrs = mkUntypedHORS rs s
+  where
+    (_, _, rs, s) = fromPMRSInner pmrs "" -- TODO set suffix
 
 ---
 
@@ -60,9 +71,11 @@ mkStart :: Param -> Symbol -> (Symbol, RankedAlphabet, [HORSRule])
 mkStart param s = (s', ra, [rule])
   where
     s'   = "S_HORS" ++ paramSuffix param
-    ra   = assert False undefined
-    npi1   = nonterminal $ "Pi1" ++ paramSuffix param
-    rule = HORSRule s' [] $ app npi1 $ [nonterminal s]
+    ra   = M.singleton s' o
+    npi1 = nonterminal $ "Pi1" ++ paramSuffix param
+    bot  = paramBot param
+    cnt  = paramCntPM param
+    rule = HORSRule s' [] $ app npi1 $ [nonterminal s] ++ replicate cnt bot
 
 rulesForRules :: Param -> (Term -> Int) -> PMRSRules -> (RankedAlphabet, [HORSRule])
 rulesForRules param pm rules = (ra, rs)
@@ -74,7 +87,12 @@ rulesForRules param pm rules = (ra, rs)
 mkRuleForRule :: Param -> (Term -> Int) -> [PMRSRule] -> (RankedAlphabet, [HORSRule])
 mkRuleForRule param pm rs@(PMRSRule f xs (Just _) _:_) = (ra, [r1,r2])
   where
-    ra = assert False undefined
+    pT       = createSort $ paramCntPM param
+    churchPairT = (o ~> pT ~> pT) ~> pT
+    --
+    r1T = (f,sortFromList $ replicate (2 + length xs) churchPairT)
+    r2T = (f_case, pT ~> churchPairT)
+    ra = M.fromList [r1T, r2T]
     --
     suffix = paramSuffix param
     f_case = f ++ "_case" ++ suffix
@@ -105,8 +123,12 @@ mkRuleForRule param pm rs@(PMRSRule f xs (Just _) _:_) = (ra, [r1,r2])
     --
     r2 = HORSRule f_case xs' $ app (var parg) $ map createCases [1..(paramCntPM param)]
 
-mkRuleForRule param _pm rs@(PMRSRule _ _  Nothing  _:_) = (undefined, map horsMap rs)
+mkRuleForRule param _pm rs@(PMRSRule f xs  Nothing  _:_) = (ra, map horsMap rs)
   where
+    pT       = createSort $ paramCntPM param
+    churchPairT = (o ~> pT ~> pT) ~> pT
+    ra = M.singleton f $ sortFromList $ replicate (1 + length xs) churchPairT
+    --
     suffix = paramSuffix param
     m k = Nt $ "T_" ++ k ++ suffix
     selector = "f" ++ suffix
@@ -115,7 +137,7 @@ mkRuleForRule param _pm rs@(PMRSRule _ _  Nothing  _:_) = (undefined, map horsMa
     csTerm = genXsTerm "c" $ paramCntPM param
     args = var selector : csTerm
     --
-    horsMap (PMRSRule f xs Nothing t) = HORSRule f (xs ++ [selector] ++ cs) $ appendArgs (substTerminals m t) args
+    horsMap (PMRSRule f' xs' Nothing t) = HORSRule f' (xs' ++ [selector] ++ cs) $ appendArgs (substTerminals m t) args
 
 -- | Given a ranked alphabet of terminal symbols this function
 -- returns a rankedalphabet of nonterminals and a list of rules representing
@@ -148,7 +170,7 @@ terminalRules param k Base pm = (ra, rs)
     selector = "f" ++ suffix
     --
     pT       = createSort $ paramCntPM param
-    churchPairT = (pT ~> pT ~> pT) ~> pT
+    churchPairT = (o ~> pT ~> pT) ~> pT
     --
     justkT   = (justk, pT)
     tkT      = (tk, churchPairT)
@@ -161,7 +183,7 @@ terminalRules param k Base pm = (ra, rs)
     --
 terminalRules param k ksrt pm = (ra, [mk_k, case_k, r])
   where
-    ra     = M.unions [ra_mk_k, ra_case_k, assert False undefined]
+    ra     = M.unions [ra_mk_k, ra_case_k, M.singleton tk tkT]
     --
     suffix = paramSuffix param
     nmkk   = nonterminal $ "Mk_" ++ k ++ suffix
@@ -171,8 +193,12 @@ terminalRules param k ksrt pm = (ra, [mk_k, case_k, r])
     npi2   = nonterminal $ "Pi2" ++ suffix
     tk     = "T_" ++ k ++ suffix
     --
-    r      = HORSRule tk (xs ++ ["f"] ++ cs) t
-    t      = app npair $ [mkcall, ccall, var "f"] ++ csTerm
+    pT          = createSort $ paramCntPM param
+    churchPairT = (o ~> pT ~> pT) ~> pT
+    tkT         = sortFromList $ replicate (1 + ar ksrt) churchPairT
+    --
+    r      = HORSRule tk (xs ++ ["f"] ++ cs) body
+    body   = app npair $ [mkcall, ccall, var "f"] ++ csTerm
     mkcall = app nmkk $ map (\xi -> app npi1 [xi]) xsTerm
     ccall  = app ncasek $ map (\xi -> app npi2 [xi]) xsTerm -- TODO Adjust type!
     l      = ar ksrt
@@ -188,21 +214,22 @@ terminalRules param k ksrt pm = (ra, [mk_k, case_k, r])
 -- |Creates the making rule that creates a single terminal tree from its arguments.
 -- We have: @Mk_k x1 ... xl = k x1 .. xl@
 mkMkRule :: Param -> Symbol -> [String] -> [Term] -> (RankedAlphabet, HORSRule)
-mkMkRule param k xs xsTerm = (ra, HORSRule f xs t)
+mkMkRule param k xs xsTerm = (ra, HORSRule f xs body)
   where
-    ra  = M.singleton f $ assert False undefined
-    f   = "Mk_" ++ k ++ paramSuffix param
-    t   = app (terminal k) $ xsTerm
+    ra   = M.singleton f $ createSort $ length xs
+    f    = "Mk_" ++ k ++ paramSuffix param
+    body = app (terminal k) $ xsTerm
 
 -- |Creates the case rule that establishes new pattern matching for
 -- given subterms and a terminal.
 -- We have @Case_k x1 ... xl cnt c1 ... cn = [(complicated pm-term)]@
 mkCasekRule :: Param -> Symbol -> [String] -> [String] -> (Term -> Int) -> (RankedAlphabet, HORSRule)
-mkCasekRule param k xs cs _pm = (ra, HORSRule f (xs ++ cs) t)
+mkCasekRule param k xs cs _pm = (ra, HORSRule f (xs ++ cs) body)
   where
-    ra = M.singleton f $ assert False undefined
-    f  = "Case_" ++ k ++ paramSuffix param
-    t  = var "undefined" -- assert False undefined
+    pT   = createSort $ paramCntPM param
+    ra   = M.singleton f $ sortFromList $ replicate (1 + length xs) $ pT
+    f    = "Case_" ++ k ++ paramSuffix param
+    body = var "undefined" -- assert False undefined
 
 -- |Creates the auxilliary rules that are needed
 -- for church encoding pairs, pattern matching and natural numbers
@@ -221,10 +248,10 @@ auxRules param = (ra, rs)
     pi2  = "Pi2" ++ suffix
     --
     pT       = createSort $ paramCntPM param
-    churchPairT = (pT ~> pT ~> pT) ~> pT
+    churchPairT = (o ~> pT ~> pT) ~> pT
     kT          = o ~> pT ~> pT
     --
-    pairT = (pair, pT ~> pT ~> churchPairT)
+    pairT = (pair, o ~> pT ~> churchPairT)
     k1T   = (k1, kT)
     k2T   = (k2, kT)
     pi1T  = (pi1, churchPairT ~> pT)

@@ -4,7 +4,7 @@ import Aux (prettyPrint)
 import Automaton (ATT, determinizeATT, Quantifier(..))
 import Abstraction as Abs
 import HORS (HORS(..), CEx, determinizeHORS, findCEx, removeBrFromCEx)
-import PMRS (PMRS, addUntypedHORS)
+import PMRS (PMRS, addHORS)
 import Preface as P (check, problemResult)
 import WPMRSTransformer as WT (fromPMRS)
 
@@ -19,9 +19,8 @@ instance Show Result where
 -- The result might be spurious.
 verify :: FilePath -> PMRS -> HORS -> ATT -> IO Result
 verify prefaceDir pmrs hors att = do
-  let pmrshors = addUntypedHORS pmrs hors
-  -- wpmrs          <- Abs.wPMRS (horsStart hors) pmrshors
-  let wpmrs = Abs.untypedwPMRS (horsStart hors) pmrshors
+  pmrshors <- addHORS pmrs hors
+  wpmrs    <- Abs.wPMRS (horsStart hors) pmrshors
   wpmrsAsHors    <- WT.fromPMRS wpmrs
   detWpmrsAsHors <- determinizeHORS wpmrsAsHors
   let detAtt = determinizeATT Existential "br__br" att

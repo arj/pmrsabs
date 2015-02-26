@@ -20,8 +20,6 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Control.Arrow (second)
 
-import Aux (traceIt)
-
 type Symbol = String
 
 data Sort = Base

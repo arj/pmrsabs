@@ -13,7 +13,7 @@ import Options
 import Examples ()
 import Aux (prettyPrint)
 import PMRSVerification ()
-import Parser (parseHORSATTfromFile, parseTreeGrammarATTfromFile)
+import Parser (parseHORSATTfromFile)
 import Term (Term, ntCut)
 import qualified Preface as P
 import qualified WPMRSTransformer ()

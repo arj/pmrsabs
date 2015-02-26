@@ -7,13 +7,13 @@ import Text.ParserCombinators.Parsec hiding (State)
 import Text.Printf (printf)
 import Data.Char (isUpper)
 import Data.Map ((!))
-import qualified Data.Map as M (unions, fromList, toList, partitionWithKey)
+import qualified Data.Map as M
 import Data.MultiMap (MultiMap)
 import qualified Data.MultiMap as MM
 import Data.Set (Set)
-import qualified Data.Set as S (toList, unions, insert, fromList)
+import qualified Data.Set as S
 
-import Aux (traceIt)
+
 import Automaton (ATT,mkATT)
 import PMRS
 import HORS
@@ -82,34 +82,44 @@ assignFreshVar x = do
 typer :: [GenericRule] -> TypeBinding
 typer rs = closeRankedAlphabet $ evalState (typer' rs) 0
 
-initialTypeBindings :: GenericRule -> State Int TypeBinding
+initialTypeBindings :: GenericRule -> State Int (TypeBinding,TypeBinding)
 initialTypeBindings (GRHORS f xs t) = do
   tcXs <- mapM assignFreshVar xs
   tcTs <- mapM assignFreshVar $ S.toList $ getT $ genericTermToTerm xs t
   let args = map snd tcXs
   let tcF  = (f, sortFromList $ args ++ [o])
-  return $ M.fromList $ tcF : tcXs ++ tcTs
+  return (M.fromList $ tcF : tcTs, M.fromList $ tcXs)
 initialTypeBindings (GRPMRS f xs p t) = do
-  tcXs <- mapM assignFreshVar xs
+  let vars = xs ++ fv' (genericPatternToPattern p)
+  tcXs <- mapM assignFreshVar vars 
   tcTs <- mapM assignFreshVar $ S.toList $ getT $ genericTermToTerm xs t
   let args = map snd tcXs
   let tcF  = (f, sortFromList $ args ++ [o,o])
   let tcP = zip (fv' $ genericPatternToPattern p) (repeat o)
-  return $ M.fromList $ tcF : tcXs ++ tcTs ++ tcP
+  return (M.fromList $ tcF : tcTs, M.fromList $ tcXs ++  tcP)
 
 typer' :: [GenericRule] -> State Int TypeBinding
 typer' rs = do
-  tb <- M.unions <$> mapM initialTypeBindings rs
+  (tsymbolslist,tvarslist) <- mapAndUnzipM initialTypeBindings rs
+  let tsymbols = M.unions tsymbolslist
+  let tvars = M.unions tvarslist
+  let tb = M.union tsymbols tvars
   tcs <- mapM (typerInner tb) rs
   let constraints = S.unions tcs
   let eithersbst = unify $ S.toList constraints
+  let pSymbol k _ = S.notMember k (M.keysSet tvars)
   case eithersbst of
     Left err -> error $ "Error in typer\n" ++ show tb ++ "\n" ++ show constraints ++ "\n" ++ err
-    Right sbst -> return $ M.fromList $ substTB sbst $ M.toList tb
+    Right sbst ->
+      let bindings = M.fromList $ substTB sbst $ M.toList tb in
+      let bindingsWithoutVars = M.filterWithKey pSymbol $ bindings in
+      return bindingsWithoutVars
 
 typerInner :: TypeBinding -> GenericRule -> State Int TypeConstraints
 typerInner gamma (GRHORS _ xs t') = typerInner' gamma xs t'
-typerInner gamma (GRPMRS _ xs _ t') = typerInner' gamma xs t'
+typerInner gamma (GRPMRS _ xs p t') = typerInner' gamma vars t'
+  where
+    vars = xs ++ fv' (genericPatternToPattern p)
 
 typerInner' :: TypeBinding -> [String] -> GenericTerm -> State Int TypeConstraints
 typerInner' gamma xs t' = do
@@ -133,7 +143,10 @@ pmrsFromGenericRules rules = mkPMRSErr t nt rs s
     (GRHORS s _ _)  = head rules
     rs = listToRules $ map transformRule rules
     transformRule (GRHORS f xs t') = PMRSRule f xs Nothing $ genericTermToTerm xs t'
-    transformRule (GRPMRS f xs p t') = PMRSRule f xs (Just $ genericPatternToPattern p) $ genericTermToTerm xs t'
+    transformRule (GRPMRS f xs p t') =
+      let pattern = genericPatternToPattern p in
+      let ys = fv' pattern in
+      PMRSRule f xs (Just pattern) $ genericTermToTerm (xs ++ ys) t'
 
 horsFromGenericRules :: [GenericRule] -> HORS
 horsFromGenericRules rules = mkHORSErr t nt rs s
