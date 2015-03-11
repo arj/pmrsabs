@@ -9,6 +9,7 @@ import qualified Data.MultiMap as MM
 import Text.Printf (printf)
 import Data.Set (Set)
 import qualified Data.Set as S
+import Data.Tuple
 
 import Aux (uncurry4,traceItWrappers)
 import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs,isomorphic)
@@ -16,7 +17,11 @@ import Sorts (ar,o,(~>),createSort,RankedAlphabet,Symbol,Sort(Base), sortFromLis
 import PMRS (PMRS(..), PMRSRules, PMRSRule(..), isWPMRS, patternDomain)
 import HORS (HORS(..), HORSRule(..), HORSRules, mkHorsRules, mkHORS, mkUntypedHORS)
 
-fromPMRSInner :: PMRS -> String -> (RankedAlphabet, RankedAlphabet, HORSRules, Symbol)
+data TransformerResult = TR { trMapping :: [(Int, Term)]
+                            , trHors :: (RankedAlphabet, RankedAlphabet, HORSRules, Symbol)
+                            }
+
+fromPMRSInner :: PMRS -> String -> TransformerResult
 fromPMRSInner pmrs@(PMRS sigma _ r s) suffix =
   if (not $ isWPMRS pmrs)
     then error "Cannot transform: PMRS is not a weak PMRS."
@@ -25,7 +30,8 @@ fromPMRSInner pmrs@(PMRS sigma _ r s) suffix =
       let bots = "bot" ++ suffix in
       let bot = terminal bots in
       let param = Param 1 (S.size patterns) suffix bot in
-      let pm = searchTerm patterns in
+      let m = mapping patterns in
+      let pm = searchTerm m in
       let (nAux, rAux) = auxRules param in
       let (nTerminals, rTerminals) = rulesForTerminals param sigma pm in
       let (nRules, rRules) = rulesForRules param pm r in
@@ -34,11 +40,12 @@ fromPMRSInner pmrs@(PMRS sigma _ r s) suffix =
       let rs = mkHorsRules rules in
       let nts = M.unions [nAux, nTerminals, nRules] in
       let sigma' = M.insert bots o sigma in
-      (sigma',nts,rs,s')
+      TR (map swap m) (sigma',nts,rs,s')
   where
-    searchTerm patterns t =
-        let mapping = zip (S.toList patterns) [1..] in
-        searchTerm' t mapping
+    mapping p = zip (S.toList p) [1..]
+    --
+    searchTerm m t =
+        searchTerm' t m
     --
     searchTerm' :: Term -> [(Term, Int)] -> Int
     searchTerm' _ [] = assert False undefined
@@ -47,12 +54,12 @@ fromPMRSInner pmrs@(PMRS sigma _ r s) suffix =
       | otherwise       = searchTerm' t rs
 
 fromPMRS :: Monad m => PMRS -> m HORS
-fromPMRS pmrs = uncurry4 mkHORS $ fromPMRSInner pmrs "" -- TODO set suffix
+fromPMRS pmrs = uncurry4 mkHORS $ trHors $ fromPMRSInner pmrs "" -- TODO set suffix
 
-fromUntypedPMRS :: PMRS -> HORS
-fromUntypedPMRS pmrs = mkUntypedHORS rs s
+fromUntypedPMRS :: PMRS -> ([(Int, Term)], HORS)
+fromUntypedPMRS pmrs = (m, mkUntypedHORS rs s)
   where
-    (_, _, rs, s) = fromPMRSInner pmrs "" -- TODO set suffix
+    TR m (_, _, rs, s) = fromPMRSInner pmrs "" -- TODO set suffix
 
 ---
 
