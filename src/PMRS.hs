@@ -134,7 +134,10 @@ mkWPMRS t nt r s = do
 -- it does not use the variables defined in the patterns
 -- on the RHSs.
 isWPMRS :: PMRS -> Bool
-isWPMRS (PMRS _ _ r _) = all pIsWPMRSRule $ concat $ MM.elems r
+isWPMRS (PMRS _ _ r s) = sortOk && (all pIsWPMRSRule $ concat $ MM.elems r)
+  where
+    sortOk = length xs == 0
+    PMRSRule _ xs _ _ = head $ matchingRules r s
 
 mkPMRS :: Monad m => RankedAlphabet -> RankedAlphabet -> PMRSRules -> Symbol -> m PMRS
 mkPMRS t nt r s = do -- TODO Check if rule for start symbol have arity 0

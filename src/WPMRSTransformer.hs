@@ -7,9 +7,10 @@ import GHC.Base (assert)
 import qualified Data.Map as M
 import qualified Data.MultiMap as MM
 import Text.Printf (printf)
+import Data.Set (Set)
 import qualified Data.Set as S
 
-import Aux (uncurry4)
+import Aux (uncurry4,traceItWrappers)
 import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs,isomorphic)
 import Sorts (ar,o,(~>),createSort,RankedAlphabet,Symbol,Sort(Base), sortFromList)
 import PMRS (PMRS(..), PMRSRules, PMRSRule(..), isWPMRS, patternDomain)

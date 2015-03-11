@@ -198,6 +198,16 @@ mkMap2 pred1 pred2 lst = app map2 [pred1, pred2 ,lst]
 mains :: Term
 mains = app main [nS]
 
+exampleDeepPatternWpmrs :: Monad m => m PMRS
+exampleDeepPatternWpmrs = mkPMRS sigma nonterminals r sS
+  where
+    sigma = mkRankedAlphabet [ssnil, sscons]
+    nonterminals = mkRankedAlphabet [ssMain, SortedSymbol "F" $ o ~> o, ssS]
+    r = listToRules [PMRSRule "Main" ["m"] Nothing $ app (nonterminal "F") [m]
+                    ,PMRSRule "F" [] (Just $ mkCons x $ mkCons y nil) $ nil
+                    ,PMRSRule "S" [] Nothing $ nil
+                    ]
+
 example2pmrs :: Monad m => m PMRS
 example2pmrs = mkPMRS sigma nonterminals r sMain
   where
@@ -232,6 +242,7 @@ example2pmrs = mkPMRS sigma nonterminals r sMain
                    ,PMRSRule "ListN"  [] Nothing $ nil
                    ,PMRSRule "ListN"  [] Nothing $ mkCons n listN
                    ]
+
 
 example2wpmrs :: Monad m => m PMRS
 example2wpmrs = do

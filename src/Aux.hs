@@ -3,7 +3,7 @@ where
 
 import Data.Set (Set)
 import qualified Data.Set as S
-import Debug.Trace (traceShow)
+import Debug.Trace (trace, traceShow)
 
 newtype RM s = RM { runRM :: s }
 
@@ -15,6 +15,9 @@ instance Monad RM where
 
 traceIt :: Show a => a -> a
 traceIt a = traceShow (show a) a
+
+traceItWrappers :: Show a => String -> String -> a -> a
+traceItWrappers pre suf a = trace (pre ++ show a ++ suf) a
 
 showSet :: Show a => Set a -> [Char]
 showSet s = if S.null s then "[]" else show s
