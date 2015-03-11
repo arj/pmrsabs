@@ -179,12 +179,11 @@ terminalRules param k Base pm = (ra, rs)
     cs     = genXs "c" $ paramCntPM param
     csTerm = genXsTerm "c" $ paramCntPM param
     --
-terminalRules param k ksrt pm = (ra, [mk_k, case_k, r])
+terminalRules param k ksrt pm = (ra, [case_k, r])
   where
-    ra     = M.unions [ra_mk_k, ra_case_k, M.singleton tk tkT]
+    ra     = M.unions [ra_case_k, M.singleton tk tkT]
     --
     suffix = paramSuffix param
-    nmkk   = nonterminal $ "Mk_" ++ k ++ suffix
     ncasek = nonterminal $ "Case_" ++ k ++ suffix
     npair  = nonterminal $ idPair ++ suffix
     npi1   = nonterminal $ "Pi1" ++ suffix
@@ -197,7 +196,7 @@ terminalRules param k ksrt pm = (ra, [mk_k, case_k, r])
     --
     r      = HORSRule tk (xs ++ ["f"] ++ cs) body
     body   = app npair $ [mkcall, ccall, var "f"] ++ csTerm
-    mkcall = app nmkk $ map (\xi -> app npi1 [xi]) xsTerm
+    mkcall = app (terminal k) $ map (\xi -> app npi1 [xi]) xsTerm
     ccall  = app ncasek $ map (\xi -> app npi2 [xi]) xsTerm -- TODO Adjust type!
     l      = ar ksrt
     n      = paramCntPM param
@@ -206,17 +205,7 @@ terminalRules param k ksrt pm = (ra, [mk_k, case_k, r])
     cs     = genXs "c" n
     csTerm = genXsTerm "c" n
     --
-    (ra_mk_k,mk_k) = mkMkRule param k xs xsTerm
     (ra_case_k, case_k) = mkCasekRule param k xs cs pm
-
--- |Creates the making rule that creates a single terminal tree from its arguments.
--- We have: @Mk_k x1 ... xl = k x1 .. xl@
-mkMkRule :: Param -> Symbol -> [String] -> [Term] -> (RankedAlphabet, HORSRule)
-mkMkRule param k xs xsTerm = (ra, HORSRule f xs body)
-  where
-    ra   = M.singleton f $ createSort $ length xs
-    f    = "Mk_" ++ k ++ paramSuffix param
-    body = app (terminal k) $ xsTerm
 
 -- |Creates the case rule that establishes new pattern matching for
 -- given subterms and a terminal.
