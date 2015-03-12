@@ -6,6 +6,7 @@ module Sorts (
   sigmaN,
   o, (~>),
   ar,
+  lift,
   sortToList, sortFromList,
   mkRankedAlphabet, rankedAlphabetToSet,
   closeRankedAlphabet,
@@ -56,6 +57,11 @@ ar :: Sort -> Int
 ar Base = 0
 ar Data = 0
 ar (Arrow _ s) = 1 + ar s
+
+-- | Lifts a sort by mapping every base to a sort.
+lift :: Sort -> Sort -> Sort
+lift goal Base = goal
+lift goal (Arrow s1 s2) = Arrow (lift goal s1) (lift goal s2)
 
 -- | Transforms a sort to a list of sorts by
 -- traversing the sort tree to the right and returning

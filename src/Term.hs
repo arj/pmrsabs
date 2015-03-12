@@ -32,7 +32,7 @@ import Control.Monad.Error
 import Control.Applicative
 
 import Aux
-import Sorts
+import Sorts hiding (lift)
 
 type Path = [Int]
 
