@@ -1,0 +1,23 @@
+%BEGINPMRS
+Main m -> Filter Nz m.
+If a b |true -> a.
+If a b |false -> b.
+Nz |z -> false.
+Nz |(s !y) -> true.
+Filter p |nil -> nil.
+Filter p |(cons !x !xs) -> If (cons x (Filter p xs)) (Filter p xs) (p x).
+%ENDPMRS
+%BEGING
+S -> ListN.
+N -> z.
+N -> s N.
+ListN -> nil.
+ListN -> cons N ListN.
+%ENDG
+%BEGINA
+q0 nil ->.
+q0 cons -> (1,q1) (2,q0).
+q1 s -> (1,q2).
+q2 z ->.
+q2 s -> (1,q2).
+%ENDA
