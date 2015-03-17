@@ -15,6 +15,15 @@ instance Show Result where
   show RSuccess = "Successfull"
   show (RError cex wpmrs hors) = "Invalid: " ++ show cex ++ "\n" ++ prettyPrint wpmrs ++ "\n" ++ prettyPrint hors
 
+verifyInput :: PMRS -> HORS -> ATT -> IO (HORS, ATT)
+verifyInput pmrs hors att = do
+  pmrshors <- addHORS pmrs hors
+  wpmrs    <- Abs.wPMRS (horsStart hors) pmrshors
+  wpmrsAsHors    <- WT.fromPMRS wpmrs
+  detWpmrsAsHors <- determinizeHORS wpmrsAsHors
+  let detAtt = determinizeATT Existential "br__br" att
+  return $ (detWpmrsAsHors, detAtt)
+
 -- | Verifies a given PMRS with a HORS input against an ATT.
 -- The result might be spurious.
 verify :: FilePath -> PMRS -> HORS -> ATT -> IO Result
