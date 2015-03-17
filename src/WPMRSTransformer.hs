@@ -13,7 +13,7 @@ import qualified Data.Set as S
 import Data.Tuple
 
 import Aux (uncurry4,traceItWrappers)
-import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs,isomorphic, heightCut)
+import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs,isomorphic, heightCut, height)
 import Sorts (ar,o,(~>),createSort,RankedAlphabet,Symbol,Sort(Base), sortFromList,sortToList,lift)
 import PMRS (PMRS(..), PMRSRules, PMRSRule(..), isWPMRS, patternDomain)
 import HORS (HORS(..), HORSRule(..), HORSRules, mkHorsRules, mkHORS, mkUntypedHORS)
@@ -28,17 +28,19 @@ fromPMRSInner pmrs@(PMRS sigma nonterminals r s) suffix =
     then error "Cannot transform: PMRS is not a weak PMRS."
     else
       let patterns = patternDomain pmrs in
+      let max_height = maximum $ map height $ S.toList patterns in
       let bots = "bot" ++ suffix in
       let bot = terminal bots in
       let m = mapping patterns in
-      let param = Param 1 (S.size patterns) suffix bot (searchTerm m) (searchTermInv m) nonterminals in
+      let param = Param max_height (S.size patterns) suffix bot (searchTerm m) (searchTermInv m) nonterminals in
+      let (nCnt, rCnt) = mkCounters param in
       let (nAux, rAux) = auxRules param in
       let (nTerminals, rTerminals) = rulesForTerminals param sigma in
       let (nRules, rRules) = rulesForRules param r in
       let (s', _nStart, rStart) = mkStart param s in
-      let rules = rAux ++ rTerminals ++ rRules ++ rStart in
+      let rules = rCnt ++ rAux ++ rTerminals ++ rRules ++ rStart in
       let rs = mkHorsRules rules in
-      let nts = M.unions [nAux, nTerminals, nRules] in
+      let nts = M.unions [nCnt, nAux, nTerminals, nRules] in
       let sigma' = M.insert bots o sigma in
       TR (map swap m) (sigma',nts,rs,s')
   where
@@ -49,7 +51,7 @@ searchTerm :: [(Term, Int)] -> Term -> Int
 searchTerm m term = searchTerm' term m
   where
     searchTerm' :: Term -> [(Term, Int)] -> Int
-    searchTerm' t [] = error (show t)
+    searchTerm' t [] = error $ "In WPMRSTransformer I couldn't find a mapping for " ++ (show t) ++ " in " ++ (show m)
     searchTerm' t ((ti,i):rs)
       | isomorphic t ti = i
       | otherwise       = searchTerm' t rs
@@ -182,16 +184,32 @@ rulesForTerminals param ra = foldl f (ra0, rs0) $ M.toList ra
       let (ra', rs') = terminalRules param k srt in
       ((M.union raAck ra'), rsAck ++ rs')
 
+mkJustRule :: Param -> Symbol -> Sort -> (RankedAlphabet, HORSRule)
+mkJustRule param k srt = (ra, justkR)
+  where
+    ra = M.singleton justk pT
+    --
+    suffix = paramSuffix param
+    justk  = "Just_" ++ k ++ suffix
+    pT     = createSort $ paramCntPM param
+    --
+    pm = paramMap param
+    --
+    cs     = genXs "c" $ paramCntPM param
+    justkR   = HORSRule justk cs $ var $ printf "c%i" $ pm $ app (terminal k) $ replicate (ar srt) $ var "_"
+
+
 -- |Wrapper rule for a terminal that creates a pair of
 -- a normal tree created from terminals and a pattern-matchable tree.
 -- Formally we have: @T_k f c1 ... cn = Pair k Just_k f c1 ... cn@ if @ar(k)=0@
 -- and @T_k x1 ... xl f c1 ... cn = Pair (Mk_k (Pi1 x1) ... (Pi1 xl)) (Case_k x1 ... xl) f c1 ... cn@
 --  if @ar(k)>0@.
 terminalRules :: Param -> Symbol -> Sort -> (RankedAlphabet, [HORSRule])
-terminalRules param k Base = (ra, rs)
+terminalRules param k Base = (ra, [tkR,rs_just])
   where
-    ra = M.fromList [justkT, tkT]
-    rs = [justkR, tkR]
+    ra = M.union ra_just $ M.fromList [tkT]
+    --
+    (ra_just,rs_just) = mkJustRule param k Base
     --
     suffix = paramSuffix param
     justk  = "Just_" ++ k ++ suffix
@@ -202,36 +220,33 @@ terminalRules param k Base = (ra, rs)
     pT       = createSort $ paramCntPM param
     churchPairT = (o ~> pT ~> pT) ~> pT
     --
-    justkT   = (justk, pT)
     tkT      = (tk, churchPairT)
     --
-    pm = paramMap param
-    --
-    justkR   = HORSRule justk cs $ var $ printf "c%i" $ pm (terminal k)
     tkR      = HORSRule tk (selector : cs) $ app (nonterminal pair) $ [terminal k, nonterminal justk, var "f"] ++ csTerm
     --
     cs     = genXs "c" $ paramCntPM param
     csTerm = genXsTerm "c" $ paramCntPM param
     --
-terminalRules param k ksrt = (ra, [case_k, r])
+terminalRules param k ksrt = (ra, [just_k, case_k, r])
   where
-    ra     = M.unions [ra_case_k, M.singleton tk tkT]
+    ra     = M.unions [ra_just_k, ra_case_k, M.singleton tk tkT, M.singleton "br_br" (o ~> o ~> o)]
     --
     suffix = paramSuffix param
     ncasek = nonterminal $ "Case_" ++ k ++ suffix
     npair  = nonterminal $ idPair ++ suffix
     npi1   = nonterminal $ "Pi1" ++ suffix
     npi2   = nonterminal $ "Pi2" ++ suffix
+    njustk = nonterminal $ "Just_" ++ k ++ suffix
     tk     = "T_" ++ k ++ suffix
     --
     pT          = createSort $ paramCntPM param
     churchPairT = (o ~> pT ~> pT) ~> pT
     tkT         = sortFromList $ replicate (1 + ar ksrt) churchPairT
     --
-    r      = HORSRule tk (xs ++ ["f"] ++ cs) body
-    body   = app npair $ [mkcall, ccall, var "f"] ++ csTerm
+    br e1 e2 = app (terminal "br_br") [e1, e2]
+    r      = HORSRule tk (xs ++ ["f"] ++ cs) $ br (body ccall) (body njustk)
     mkcall = app (terminal k) $ map (\xi -> app npi1 [xi]) xsTerm
-    ccall  = app ncasek $ map (\xi -> app npi2 [xi]) xsTerm -- TODO Adjust type!
+    ccall  = app ncasek $ map (\xi -> app npi2 [xi]) xsTerm
     l      = ar ksrt
     n      = paramCntPM param
     xs     = genXs "x" l
@@ -239,7 +254,10 @@ terminalRules param k ksrt = (ra, [case_k, r])
     cs     = genXs "c" n
     csTerm = genXsTerm "c" n
     --
+    body pmpart = app npair $ [mkcall, pmpart, var "f"] ++ csTerm
+    --
     (ra_case_k, case_k) = mkCasekRule param k xs cs
+    (ra_just_k, just_k) = mkJustRule param k ksrt
 
 createCaseCases :: Param -> Symbol -> [String] -> [String] -> Term
 createCaseCases param k xs cs = inner xs []
@@ -305,3 +323,20 @@ genXs x n = map (\i -> x ++ show i) [1..n]
 
 genXsTerm :: String -> Int -> [Term]
 genXsTerm x n = map var $ genXs x n
+
+mkCounters :: Param -> (RankedAlphabet, [HORSRule])
+mkCounters param = (ra, rs)
+  where
+    depth = paramDepth param
+    suffix = paramSuffix param
+    cnt n = "Cnt" ++ (show n) ++ suffix
+    --
+    cntArgs = map (\i -> "cnt" ++ (show i)) [1..depth]
+    --
+    cntT = sortFromList $ replicate (depth+1) o
+    --
+    rCnt n = HORSRule (cnt n) cntArgs $ var $ "cnt" ++ (show n)
+    raCnt n = M.singleton (cnt n) cntT
+    --
+    ra = M.unions $ map raCnt [1..depth]
+    rs = map rCnt [1..depth]
