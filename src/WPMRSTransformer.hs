@@ -244,7 +244,8 @@ terminalRules param k ksrt = (ra, [just_k, case_k, r])
     tkT         = sortFromList $ replicate (1 + ar ksrt) churchPairT
     --
     br e1 e2 = app (terminal "br_br") [e1, e2]
-    r      = HORSRule tk (xs ++ ["f"] ++ cs) $ br (body ccall) (body njustk)
+--    r      = HORSRule tk (xs ++ ["f"] ++ cs) $ br (body ccall) (body njustk)
+    r      = HORSRule tk (xs ++ ["f"] ++ cs) $ body ccall
     mkcall = app (terminal k) $ map (\xi -> app npi1 [xi]) xsTerm
     ccall  = app ncasek $ map (\xi -> app npi2 [xi]) xsTerm
     l      = ar ksrt
@@ -256,12 +257,15 @@ terminalRules param k ksrt = (ra, [just_k, case_k, r])
     --
     body pmpart = app npair $ [mkcall, pmpart, var "f"] ++ csTerm
     --
-    (ra_case_k, case_k) = mkCasekRule param k xs cs
+    (ra_case_k, case_k) = mkCasekRule param k ksrt xs cs
     (ra_just_k, just_k) = mkJustRule param k ksrt
 
-createCaseCases :: Param -> Symbol -> [String] -> [String] -> Term
-createCaseCases param k xs cs = inner xs []
+createCaseCases :: Param -> Symbol -> Sort -> [String] -> [String] -> Term
+createCaseCases param k srt xs cs = term
   where
+    pat = app (terminal k) $ replicate (ar srt) $ var "_"
+    term = if (paramDepth param) == 1 then var $ cs !! ((paramMap param pat) - 1) else inner xs []
+    --
     inner :: [String] -> [Int] -> Term
     inner [xn] is = app (var xn) $ zipWith (\i _ -> createTerm $ reverse $ i:is) [1..] cs
     inner (xi:rest) is = app (var xi) $ zipWith (\i _ -> inner rest (i:is)) [1..] cs
@@ -274,13 +278,13 @@ createCaseCases param k xs cs = inner xs []
 -- |Creates the case rule that establishes new pattern matching for
 -- given subterms and a terminal.
 -- We have @Case_k x1 ... xl cnt c1 ... cn = [(complicated pm-term)]@
-mkCasekRule :: Param -> Symbol -> [String] -> [String] -> (RankedAlphabet, HORSRule)
-mkCasekRule param k xs cs = (ra, HORSRule f (xs ++ cs) body)
+mkCasekRule :: Param -> Symbol -> Sort -> [String] -> [String] -> (RankedAlphabet, HORSRule)
+mkCasekRule param k srt xs cs = (ra, HORSRule f (xs ++ cs) body)
   where        
     pT   = createSort $ paramCntPM param
     ra   = M.singleton f $ sortFromList $ replicate (1 + length xs) $ pT
     f    = "Case_" ++ k ++ paramSuffix param
-    body = createCaseCases param k xs cs
+    body = createCaseCases param k srt xs cs
 
 -- |Creates the auxilliary rules that are needed
 -- for church encoding pairs, pattern matching and natural numbers

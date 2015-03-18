@@ -17,7 +17,9 @@ module Term (
 
   bump,
 
-  lookupTerm
+  lookupTerm,
+  strip,
+  stripNCut
   ) where
 
 import Data.List
@@ -356,3 +358,19 @@ bump = do
 lookupTerm :: Path -> Term -> Maybe Term
 lookupTerm [] t = return t
 lookupTerm (i:r) (App _ ts) = lookupTerm r =<< lookupList ts i
+
+-- | Strips the br symbols and cuts all nonterminals.
+stripNCut :: Term -> Set Term
+stripNCut t = S.map ntCut $ S.filter (not . pNtHead) $ strip t
+
+-- | Removes br symbols.
+strip :: Term -> Set Term
+strip (App (T "br__br") ts) = S.unions $ map strip ts
+strip (App h ts) = S.fromList [ App h ts' | ts' <- combinations $ map (S.toList . strip) ts]
+
+-- | For a list of lists get all the possible ordered combinations.
+-- [[a,b],[c,d],[e]] == [[a,c,e],[a,d,e],[b,c,e],[b,d,e]]
+combinations :: [[a]] -> [[a]]
+combinations [] = [[]]
+combinations ([]:_) = []
+combinations ((h:t):ls) = map (h:) (combinations ls) ++ combinations (t:ls)

@@ -17,6 +17,7 @@ import           Sorts
 import           Term
 import Automaton
 import WPMRSTransformer (fromPMRS)
+import qualified Parser as P
 
 
 example5 :: (Set Term, Set Term, Set Term)
@@ -392,3 +393,8 @@ wpmrsSimple1 = mkPMRS sigma nonterminals r "S"
                    ,PMRSRule "S" [] Nothing $ app nz [n]
                    ,PMRSRule "N"  [] Nothing $ app s [z]
                    ]
+
+filterExampleFromFile :: IO (PMRS, HORS, ATT)
+filterExampleFromFile = do
+  Right (p,h,a) <- P.parsePMRSHORSATTfromFile "examples/filter-full.pmrs"
+  return (p,h,a)

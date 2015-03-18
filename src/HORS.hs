@@ -16,7 +16,8 @@ module HORS (
   removeBrFromCEx,
   stepNDHORS,
   startSymbol,
-  symbolType
+  symbolType,
+  fullReduction
   ) where
 
 import Data.List
@@ -254,3 +255,12 @@ stepNDHORS h n t
   | n > 0  =
     let t' = stepDHORS h t in
     stepNDHORS h (n-1) t'
+
+fullReduction :: HORS -> Term -> Term
+fullReduction h t = fix t
+  where
+    fix old =
+      let new = stepDHORS h old in
+      case old == new of
+        True -> old
+        False -> fix new
