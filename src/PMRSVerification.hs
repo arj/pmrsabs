@@ -13,7 +13,7 @@ data Result = RSuccess
 
 instance Show Result where
   show RSuccess = "Successfull"
-  show (RError cex wpmrs hors) = "Invalid: " ++ show cex ++ "\n" ++ prettyPrint wpmrs ++ "\n" ++ prettyPrint hors
+  show (RError cex wpmrs hors) = "Counterexample: " ++ show cex
 
 verifyInput :: PMRS -> HORS -> ATT -> IO (HORS, ATT)
 verifyInput pmrs hors att = do
@@ -21,7 +21,7 @@ verifyInput pmrs hors att = do
   wpmrs    <- Abs.wPMRS (horsStart hors) pmrshors
   wpmrsAsHors    <- WT.fromPMRS wpmrs
   detWpmrsAsHors <- determinizeHORS wpmrsAsHors
-  let detAtt = determinizeATT Existential "br__br" att
+  let detAtt = determinizeATT Universal "br__br" att
   return $ (detWpmrsAsHors, detAtt)
 
 -- | Verifies a given PMRS with a HORS input against an ATT.
@@ -32,7 +32,7 @@ verify prefaceDir pmrs hors att = do
   wpmrs    <- Abs.wPMRS (horsStart hors) pmrshors
   wpmrsAsHors    <- WT.fromPMRS wpmrs
   detWpmrsAsHors <- determinizeHORS wpmrsAsHors
-  let detAtt = determinizeATT Existential "br__br" att
+  let detAtt = determinizeATT Universal "br__br" att
   res <- P.check prefaceDir detWpmrsAsHors detAtt
   case fmap (P.problemResult) res of
     Left msg -> error $ show msg
