@@ -92,8 +92,7 @@ initialTypeBindings (GRHORS f xs t) = do
   let tcF  = (f, sortFromList $ args ++ [o])
   return (M.fromList $ tcF : tcTs, M.fromList $ tcXs)
 initialTypeBindings (GRPMRS f xs p t) = do
-  let vars = xs
-  tcXs <- mapM assignFreshVar vars 
+  tcXs <- mapM assignFreshVar xs 
   tcTs <- mapM assignFreshVar $ S.toList $ getT $ genericTermToTerm xs t
   let args = map snd tcXs
   let tcF  = (f, sortFromList $ args ++ [o,o])
