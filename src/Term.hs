@@ -347,7 +347,7 @@ trees' ra n = ctxts ++ trees' ra 1
 trees :: RankedAlphabet -> Int -> Set Term
 trees ra n = S.fromList $ trees' ra n
 
-type TypeConstraints = Set (Sort,Sort)
+type TypeConstraints = Set (Term,Sort,Sort)
 
 bump :: State Int Int
 bump = do

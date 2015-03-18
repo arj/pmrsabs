@@ -1,5 +1,6 @@
 module Parser where
 
+import Data.List
 import Control.Monad.State
 import Control.Arrow (first)
 import Control.Applicative ((<$>))
@@ -14,6 +15,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 
 
+import Aux (dropFst3)
 import Automaton (ATT,mkATT)
 import PMRS
 import HORS
@@ -90,7 +92,7 @@ initialTypeBindings (GRHORS f xs t) = do
   let tcF  = (f, sortFromList $ args ++ [o])
   return (M.fromList $ tcF : tcTs, M.fromList $ tcXs)
 initialTypeBindings (GRPMRS f xs p t) = do
-  let vars = xs ++ fv' (genericPatternToPattern p)
+  let vars = xs
   tcXs <- mapM assignFreshVar vars 
   tcTs <- mapM assignFreshVar $ S.toList $ getT $ genericTermToTerm xs t
   let args = map snd tcXs
@@ -106,10 +108,13 @@ typer' rs = do
   let tb = M.union tsymbols tvars
   tcs <- mapM (typerInner tb) rs
   let constraints = S.unions tcs
-  let eithersbst = unify $ S.toList constraints
+  let eithersbst = unify $ map dropFst3 $ S.toList constraints
   let pSymbol k _ = S.notMember k (M.keysSet tvars)
   case eithersbst of
-    Left err -> error $ "Error in typer\n" ++ show tb ++ "\n" ++ show constraints ++ "\n" ++ err
+    Left err ->
+      let str_tb = show tb in
+      let str_constraints = intercalate "\n" $ map show $ S.toList constraints in
+      error $ "Error in typer\nInitial bindings:\n" ++ str_tb ++ "\n\nConstraints:\n" ++ str_constraints ++ "\n\n" ++ err
     Right sbst ->
       let bindings = M.fromList $ substTB sbst $ M.toList tb in
       let bindingsWithoutVars = M.filterWithKey pSymbol $ bindings in
@@ -125,16 +130,16 @@ typerInner' :: TypeBinding -> [String] -> GenericTerm -> State Int TypeConstrain
 typerInner' gamma xs t' = do
   let t = genericTermToTerm xs t'
   (retVar, gamma') <- createConstraints gamma t
-  return $ S.insert (retVar,o) gamma'
+  return $ S.insert (t, retVar,o) gamma'
 
 createConstraints :: TypeBinding -> Term -> State Int (Sort, TypeConstraints)
-createConstraints gamma (App h ts) = do
+createConstraints gamma t@(App h ts) = do
   let hType = gamma ! (show h) -- TODO Error handling!
   (symbols, gammas) <- unzip <$> mapM (createConstraints gamma) ts
   alpha <- show <$> bump
   let ret = SVar $ "t" ++ alpha
   let hType2 = sortFromList $ symbols ++ [ret]
-  return $ (ret, S.insert (hType, hType2) $ S.unions gammas)
+  return $ (ret, S.insert (t,hType, hType2) $ S.unions gammas)
 
 pmrsFromGenericRules :: [GenericRule] -> PMRS
 pmrsFromGenericRules rules = mkPMRSErr t nt rs s
@@ -322,3 +327,6 @@ parseTreeGrammarATTfromFile = parseFromFile parseTreeGrammarATT
 
 parsePMRSHORSATTfromFile :: FilePath -> IO (Either ParseError (PMRS, HORS, ATT))
 parsePMRSHORSATTfromFile = parseFromFile parsePMRSHORSATT
+
+parsePMRSfromFile :: FilePath -> IO (Either ParseError PMRS)
+parsePMRSfromFile = parseFromFile parsePmrs
