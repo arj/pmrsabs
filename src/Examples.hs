@@ -396,5 +396,5 @@ wpmrsSimple1 = mkPMRS sigma nonterminals r "S"
 
 filterExampleFromFile :: IO (PMRS, HORS, ATT)
 filterExampleFromFile = do
-  Right (p,h,a) <- P.parsePMRSHORSATTfromFile "examples/filter-full.pmrs"
-  return (p,h,a)
+  Right (pmrs,hors,att) <- P.parsePMRSHORSATTfromFile "examples/filter-full.pmrs"
+  return (pmrs,hors,att)

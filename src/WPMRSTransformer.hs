@@ -3,16 +3,13 @@
 module WPMRSTransformer
 where
 
-import GHC.Base (assert)
-import Data.Map ((!))
 import qualified Data.Map as M
 import qualified Data.MultiMap as MM
 import Text.Printf (printf)
-import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Tuple
 
-import Aux (uncurry4,traceItWrappers)
+import Aux (uncurry4)
 import Term (var, app, nonterminal, terminal, substTerminals, Term, Head(Nt), appendArgs,isomorphic, heightCut, height)
 import Sorts (ar,o,(~>),createSort,RankedAlphabet,Symbol,Sort(Base), sortFromList,sortToList,lift)
 import PMRS (PMRS(..), PMRSRules, PMRSRule(..), isWPMRS, patternDomain)
@@ -236,15 +233,12 @@ terminalRules param k ksrt = (ra, [just_k, case_k, r])
     npair  = nonterminal $ idPair ++ suffix
     npi1   = nonterminal $ "Pi1" ++ suffix
     npi2   = nonterminal $ "Pi2" ++ suffix
-    njustk = nonterminal $ "Just_" ++ k ++ suffix
     tk     = "T_" ++ k ++ suffix
     --
     pT          = createSort $ paramCntPM param
     churchPairT = (o ~> pT ~> pT) ~> pT
     tkT         = sortFromList $ replicate (1 + ar ksrt) churchPairT
     --
-    br e1 e2 = app (terminal "br_br") [e1, e2]
---    r      = HORSRule tk (xs ++ ["f"] ++ cs) $ br (body ccall) (body njustk)
     r      = HORSRule tk (xs ++ ["f"] ++ cs) $ body ccall
     mkcall = app (terminal k) $ map (\xi -> app npi1 [xi]) xsTerm
     ccall  = app ncasek $ map (\xi -> app npi2 [xi]) xsTerm
@@ -261,11 +255,8 @@ terminalRules param k ksrt = (ra, [just_k, case_k, r])
     (ra_just_k, just_k) = mkJustRule param k ksrt
 
 createCaseCases :: Param -> Symbol -> Sort -> [String] -> [String] -> Term
-createCaseCases param k srt xs cs = inner xs [] -- term
+createCaseCases param k _srt xs cs = inner xs []
   where
-    pat = app (terminal k) $ replicate (ar srt) $ var "_"
-    term = if (paramDepth param) == 1 then var $ cs !! ((paramMap param pat) - 1) else inner xs []
-    --
     inner :: [String] -> [Int] -> Term
     inner [xn] is = app (var xn) $ zipWith (\i _ -> createTerm $ reverse $ i:is) [1..] cs
     inner (xi:rest) is = app (var xi) $ zipWith (\i _ -> inner rest (i:is)) [1..] cs

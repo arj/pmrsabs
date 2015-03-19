@@ -1,6 +1,5 @@
 module PMRSVerification where
 
-import Aux (prettyPrint)
 import Automaton (ATT, determinizeATT, Quantifier(..))
 import Abstraction as Abs
 import HORS (HORS(..), CEx, determinizeHORS, findCEx, removeBrFromCEx)
@@ -13,7 +12,7 @@ data Result = RSuccess
 
 instance Show Result where
   show RSuccess = "Successfull"
-  show (RError cex wpmrs hors) = "Counterexample: " ++ show cex
+  show (RError cex _wpmrs _hors) = "Counterexample: " ++ show cex
 
 verifyInput :: PMRS -> HORS -> ATT -> IO (HORS, ATT)
 verifyInput pmrs hors att = do

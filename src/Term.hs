@@ -6,7 +6,7 @@ module Term (
   app,var, mkCase, terminal, nonterminal, symbol, sToSymbol, ssToSymbol, headToTerm,
   fv, fv', subst, substAll, substTerminal, substTerminals, subterms, subterms', getN, replaceVarsBy,
   typeCheck, caseVars, height, maxHeight, heightCut, terminalSigma, getT,
-  isomorphic, subpatterns,
+  isomorphic,
 
   isTerminalHead, isNTHead, prefixTerms,
   isUsingCase, isUsingD, isNotContainingN,
@@ -101,10 +101,6 @@ symbol s@(c:_)
 
 subterms :: Term -> Set Term
 subterms t@(App _ ts) = S.insert t $ S.unions $ map subterms ts
-
-subpatterns :: Term -> Set Term
-subpatterns (App (Var _) []) = S.empty
-subpatterns t@(App _ ts) = S.insert t $ S.unions $ map subpatterns ts
 
 -- | Lists all subterms who's head is either a variable or a non-terminal.
 subterms' :: Term -> Set Term
