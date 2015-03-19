@@ -329,3 +329,6 @@ parsePMRSHORSATTfromFile = parseFromFile parsePMRSHORSATT
 
 parsePMRSfromFile :: FilePath -> IO (Either ParseError PMRS)
 parsePMRSfromFile = parseFromFile parsePmrs
+
+parseHORSfromFile :: FilePath -> IO (Either ParseError HORS)
+parseHORSfromFile = parseFromFile parseHors
