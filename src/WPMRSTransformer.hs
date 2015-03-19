@@ -261,7 +261,7 @@ terminalRules param k ksrt = (ra, [just_k, case_k, r])
     (ra_just_k, just_k) = mkJustRule param k ksrt
 
 createCaseCases :: Param -> Symbol -> Sort -> [String] -> [String] -> Term
-createCaseCases param k srt xs cs = term
+createCaseCases param k srt xs cs = inner xs [] -- term
   where
     pat = app (terminal k) $ replicate (ar srt) $ var "_"
     term = if (paramDepth param) == 1 then var $ cs !! ((paramMap param pat) - 1) else inner xs []
