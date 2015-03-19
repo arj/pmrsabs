@@ -1,0 +1,5 @@
+%BEGINPMRS
+Main m -> Filter Nz m.
+Nz |(s !y) -> true.
+Filter p |(cons !x !xs) -> cons x (Filter p xs).
+%ENDPMRS
