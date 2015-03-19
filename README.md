@@ -6,8 +6,10 @@ and Alternating Trivial Automata (ATT). It uses [Preface](http://mjolnir.cs.ox.a
 # Basic usage
 
 To use PMRSAbs, you just call it with your grammar file as argument:
-    $ ./pmrsabs input.pmrs
-    Successfull
+```
+$ ./pmrsabs input.pmrs
+Successfull
+```
 
 PMRSAbs supports different modes:
 * An evaluation mode, that stepwise reduces a given HORS (including determinization).
