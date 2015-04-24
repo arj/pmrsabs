@@ -9,7 +9,7 @@ module Term (
   isomorphic,
 
   isTerminalHead, isNTHead, prefixTerms,
-  isUsingCase, isUsingD, isNotContainingN,
+  isUsingCase, isUsingD, isNotContainingN, isValue,
   isMatching, isMatchingErr,
 
   runM, runIsMatching, pNtHead, ntCut, trees, trees',
@@ -177,6 +177,10 @@ isUsingD (D _) = True
 -- | Checks whether the given term does not contain nonterminal symbols.
 isNotContainingN :: Term -> Bool
 isNotContainingN t = S.null $ getN t
+
+-- | Alias to [isNotContainingN]
+isValue :: Term -> Bool
+isValue = isNotContainingN
 
 -- | Appends arguments on top-level application
 appendArgs :: Term -> [Term] -> Term

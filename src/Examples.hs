@@ -398,3 +398,19 @@ filterExampleFromFile :: IO (PMRS, HORS, ATT)
 filterExampleFromFile = do
   Right (pmrs,hors,att) <- P.parsePMRSHORSATTfromFile "examples/filter-full.pmrs"
   return (pmrs,hors,att)
+
+basicSigma :: RankedAlphabet
+basicSigma = mkRankedAlphabet [sstrue
+                 ,ssfalse
+                 ,ssnil
+                 ,sscons
+                 ,ssz
+                 ,sss
+                 ]
+
+basicSigmaNatList :: RankedAlphabet
+basicSigmaNatList = mkRankedAlphabet [ssnil
+                 ,sscons
+                 ,ssz
+                 ,sss
+                 ]

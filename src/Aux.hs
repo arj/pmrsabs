@@ -69,3 +69,7 @@ uncurry4 f (x, y, z, w) = f x y z w
 
 dropFst3 :: (a,b,c) -> (b,c)
 dropFst3 (_,b,c) = (b,c)
+
+isRight :: Either a b -> Bool
+isRight (Right _) = True
+isRight _ = False

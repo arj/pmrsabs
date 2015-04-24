@@ -30,14 +30,13 @@ fromPMRSInner pmrs@(PMRS sigma nonterminals r s) suffix =
       let bot = terminal bots in
       let m = mapping patterns in
       let param = Param max_height (S.size patterns) suffix bot (searchTerm m) (searchTermInv m) nonterminals in
-      let (nCnt, rCnt) = mkCounters param in
       let (nAux, rAux) = auxRules param in
       let (nTerminals, rTerminals) = rulesForTerminals param sigma in
       let (nRules, rRules) = rulesForRules param r in
       let (s', _nStart, rStart) = mkStart param s in
-      let rules = rCnt ++ rAux ++ rTerminals ++ rRules ++ rStart in
+      let rules = rAux ++ rTerminals ++ rRules ++ rStart in
       let rs = mkHorsRules rules in
-      let nts = M.unions [nCnt, nAux, nTerminals, nRules] in
+      let nts = M.unions [nAux, nTerminals, nRules] in
       let sigma' = M.insert bots o sigma in
       TR (map swap m) (sigma',nts,rs,s')
   where
@@ -318,20 +317,3 @@ genXs x n = map (\i -> x ++ show i) [1..n]
 
 genXsTerm :: String -> Int -> [Term]
 genXsTerm x n = map var $ genXs x n
-
-mkCounters :: Param -> (RankedAlphabet, [HORSRule])
-mkCounters param = (ra, rs)
-  where
-    depth = paramDepth param
-    suffix = paramSuffix param
-    cnt n = "Cnt" ++ (show n) ++ suffix
-    --
-    cntArgs = map (\i -> "cnt" ++ (show i)) [1..depth]
-    --
-    cntT = sortFromList $ replicate (depth+1) o
-    --
-    rCnt n = HORSRule (cnt n) cntArgs $ var $ "cnt" ++ (show n)
-    raCnt n = M.singleton (cnt n) cntT
-    --
-    ra = M.unions $ map raCnt [1..depth]
-    rs = map rCnt [1..depth]

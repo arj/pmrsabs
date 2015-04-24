@@ -5,6 +5,7 @@ module Options (
     isExistential,
     isRunOnly,
     isQuiet,
+    hasTransform,
     pmrsabsOptions,
     getMode,
     Mode(..)
@@ -19,6 +20,7 @@ data Flag
   | PrefaceDir String
   | RunHORS
   | Quiet
+  | Transform
   deriving (Eq, Show)
 
 options :: [OptDescr Flag]
@@ -29,6 +31,7 @@ options =
     , Option []     ["preface"]  (ReqArg PrefaceDir "DIR")   "Location of Preface (if not given, 'Preface.exe' is used)"
     , Option ['r'] ["run"] (NoArg RunHORS) "Function as an evaluator for HORS"
     , Option ['q'] ["quiet"] (NoArg Quiet) "Only produces error messages. Does not cancel verbose."
+    , Option ['t'] ["transform"] (NoArg Transform) "Just transform given PMRS into a D-HORS and print"
     ]
 
 data Mode
@@ -46,6 +49,12 @@ getPrefaceDir :: [Flag] -> String
 getPrefaceDir [] = "Preface.exe"
 getPrefaceDir (PrefaceDir dir:_) = dir
 getPrefaceDir (_:xs) = getPrefaceDir xs
+
+hasFlag :: Flag -> [Flag] -> Bool
+hasFlag flg flags = any ((==) flg) flags
+
+hasTransform :: [Flag] -> Bool
+hasTransform = hasFlag Transform
 
 isVerbose :: [Flag] -> Bool
 isVerbose flg = any ((==) Verbose) flg

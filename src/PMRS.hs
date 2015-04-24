@@ -225,7 +225,7 @@ prettyPrintRules s r = do
 instance PrettyPrint PMRS where
   prettyPrint pmrs = execWriter $ prettyPrintPMRS pmrs
 
--- | Extracts all the patterns and replaces
+-- | Extracts all the patterns and subpatterns, and replaces
 -- all variables with an underscore.
 patternDomain :: PMRS -> Set Term
 patternDomain pmrs = S.fromList lst
@@ -321,3 +321,14 @@ applyRule ts (PMRSRule _ xs (Just p) t) =
     -- Crashes on empty list!
     tsInit = init ts
     tsLast = last ts
+
+-- | Unfolds a single group of PMRS pattern matching rules to depth n.
+unfolding :: PMRS -> Symbol -> Int -> PMRS
+unfolding (PMRS sigma n r s) nt depth = assert True undefined
+  where
+    r' = MM.foldlWithKey (\m f r -> if f == nt then unfold' m r else MM.insert f r m) MM.empty r
+    ts = trees sigma depth
+    --
+    unfold' m r@(PMRSRule f xs  Nothing t) = MM.insert f r m
+    unfold' m r@(PMRSRule f xs (Just p) t) = MM.insert f r m
+      

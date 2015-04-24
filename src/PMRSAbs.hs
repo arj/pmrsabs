@@ -9,14 +9,15 @@ import System.Environment (getArgs)
 
 import Text.ParserCombinators.Parsec (ParseError)
 
+import Aux (prettyPrint)
 import Automaton (ATT())
 import PMRS (PMRS())
 import HORS (HORS(), startSymbol, stepNDHORS)
 import Options
 import Examples ()
-import PMRSVerification (verifyPMRS, verifyHORS, Result(..))
+import PMRSVerification (verifyPMRS, verifyHORS, verifyInput, Result(..))
 import Parser (parseHORSATTfromFile, parseHORSfromFile, parseHORSATTfromFile, parsePMRSHORSATTfromFile)
-import Term (Term, ntCut)
+import Term (Term, ntCut, isValue)
 import qualified Preface as P
 import qualified WPMRSTransformer ()
 
@@ -58,8 +59,10 @@ loop :: HORS -> Term -> IO ()
 loop hors t = do
   getChar
   let t' = stepNDHORS hors 1 t
-  print $ ntCut t'
-  loop hors t'
+  print $ t --ntCut t'
+  case isValue t of
+    False -> loop hors t'
+    True -> return ()
 
 main :: IO ()
 main = do
@@ -101,6 +104,12 @@ main = do
           exitWith $ ExitFailure errParse
         --
         Right (GFPMRS pmrs hors att) -> do
+          when (hasTransform flags) $ do
+            (dhors, datt) <- verifyInput pmrs hors att
+            putStrLn $ prettyPrint dhors
+            putStrLn $ prettyPrint datt
+            exitWith ExitSuccess
+          --
           verbose "PMRS verification mode"
           result <- verifyPMRS verbose prefaceDir pmrs hors att
           output $ show result
