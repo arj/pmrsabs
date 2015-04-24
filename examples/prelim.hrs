@@ -1,0 +1,5 @@
+%BEGING
+S -> F G c.
+F phi x -> phi x (F phi (b x)).
+G x1 y1 -> a x1 y1.
+%ENDG

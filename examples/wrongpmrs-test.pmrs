@@ -1,0 +1,11 @@
+%BEGINPMRS
+Main x -> Nz x.
+Nz |z -> false.
+Nz |(cons nil nil) -> false.
+%ENDPMRS
+%BEGING
+S -> z.
+%ENDG
+%BEGINA
+q0 false ->.
+%ENDA
